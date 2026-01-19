@@ -1,0 +1,13 @@
+
+:root{
+  --brand-navy:#123F7A;--brand-emerald:#6AA87A;--brand-teal:#2C8C9A;--brand-lightblue:#6DB9D6;
+  --ink:#101418;--paper:#FFFFFF;--muted:#F4F6F8;--danger:#D9534F;--warning:#F0AD4E;--success:#5CB85C;
+}
+body{color:var(--ink);background:var(--muted);} 
+.navbar.bg-primary{background-color:var(--brand-navy)!important}
+.btn-primary{background:var(--brand-navy);border-color:var(--brand-navy)}
+.btn-outline-primary{color:var(--brand-navy);border-color:var(--brand-navy)}
+.btn-outline-primary:hover{background:var(--brand-navy);color:#fff}
+.card{border:0;border-radius:12px}
+.card .card-body{padding:1rem 1.25rem}
+.table thead{background:#eef4ff}
