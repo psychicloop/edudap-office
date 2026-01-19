@@ -1,0 +1,11 @@
+
+flask
+flask-login
+flask-wtf
+email-validator
+flask-sqlalchemy
+apscheduler
+pandas
+openpyxl
+PyPDF2
+python-dotenv
