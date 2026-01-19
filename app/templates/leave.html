@@ -1,0 +1,19 @@
+
+{% extends 'base.html' %}
+{% block content %}
+<h3>My Leave Requests</h3>
+<form class="row g-2 align-items-end" method="post" action="{{ url_for('leave.request_leave') }}">
+  <div class="col-md-3"><label class="form-label">Start</label><input type="date" name="start_date" class="form-control" required></div>
+  <div class="col-md-3"><label class="form-label">End</label><input type="date" name="end_date" class="form-control" required></div>
+  <div class="col-md-3"><label class="form-label">Type</label><input name="leave_type" class="form-control" placeholder="Sick/Casual/etc."></div>
+  <div class="col-md-3"><label class="form-label">Reason</label><input name="reason" class="form-control"></div>
+  <div class="col-auto"><button class="btn btn-primary">Request</button></div>
+</form>
+<hr>
+<table class="table table-sm table-striped"><thead><tr><th>Dates</th><th>Type</th><th>Reason</th><th>Status</th></tr></thead>
+<tbody>
+  {% for r in myreq %}
+    <tr><td>{{ r.start_date }} → {{ r.end_date }}</td><td>{{ r.leave_type }}</td><td>{{ r.reason }}</td><td>{{ r.status }}</td></tr>
+  {% endfor %}
+</tbody></table>
+{% endblock %}

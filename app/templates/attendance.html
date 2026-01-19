@@ -1,0 +1,30 @@
+
+{% extends 'base.html' %}
+{% block content %}
+<h3>Attendance</h3>
+<form class="row g-2 align-items-end" method="post" action="{{ url_for('attendance.check_in') }}">
+  <div class="col-auto"><label class="form-label">Note</label><input name="note" class="form-control" placeholder="Optional note"></div>
+  <input type="hidden" name="lat" id="latIn"><input type="hidden" name="lon" id="lonIn">
+  <div class="col-auto"><button class="btn btn-success">Check In</button></div>
+</form>
+<form class="row g-2 align-items-end mt-2" method="post" action="{{ url_for('attendance.check_out') }}">
+  <div class="col-auto"><label class="form-label">Note</label><input name="note" class="form-control" placeholder="Optional note"></div>
+  <input type="hidden" name="lat" id="latOut"><input type="hidden" name="lon" id="lonOut">
+  <div class="col-auto"><button class="btn btn-danger">Check Out</button></div>
+</form>
+<hr>
+<table class="table table-sm table-striped"><thead><tr><th>Time</th><th>Type</th><th>Note</th><th>Lat</th><th>Lon</th></tr></thead>
+<tbody>
+  {% for r in records %}
+    <tr><td>{{ r.timestamp }}</td><td>{{ r.type }}</td><td>{{ r.note }}</td><td>{{ '%.5f' % r.lat if r.lat else '' }}</td><td>{{ '%.5f' % r.lon if r.lon else '' }}</td></tr>
+  {% endfor %}
+</tbody></table>
+<script>
+if(navigator.geolocation){
+  navigator.geolocation.getCurrentPosition(pos=>{
+    ['latIn','latOut'].forEach(id=>document.getElementById(id).value=pos.coords.latitude);
+    ['lonIn','lonOut'].forEach(id=>document.getElementById(id).value=pos.coords.longitude);
+  });
+}
+</script>
+{% endblock %}

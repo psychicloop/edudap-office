@@ -1,0 +1,16 @@
+
+{% extends 'base.html' %}
+{% block content %}
+<h3>Admin Dashboard</h3>
+<div class="row g-3">
+  <div class="col-md-3"><div class="card text-center"><div class="card-body"><div class="h5">Attendance Records</div><div class="display-6">{{ cards.attendance_today }}</div></div></div></div>
+  <div class="col-md-3"><div class="card text-center"><div class="card-body"><div class="h5">Pending Leaves</div><div class="display-6">{{ cards.pending_leaves }}</div></div></div></div>
+  <div class="col-md-3"><div class="card text-center"><div class="card-body"><div class="h5">Pending Expenses</div><div class="display-6">{{ cards.pending_expenses }}</div></div></div></div>
+  <div class="col-md-3"><div class="card text-center"><div class="card-body"><div class="h5">Open Tasks</div><div class="display-6">{{ cards.open_todos }}</div></div></div></div>
+</div>
+<div class="mt-4">
+  <a class="btn btn-outline-primary" href="{{ url_for('leave.manage') }}">Manage Leaves</a>
+  <a class="btn btn-outline-primary" href="{{ url_for('expenses.manage') }}">Manage Expenses</a>
+  <a class="btn btn-outline-primary" href="{{ url_for('location.latest') }}">Latest Locations</a>
+</div>
+{% endblock %}

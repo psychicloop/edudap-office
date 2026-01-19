@@ -1,0 +1,31 @@
+
+{% extends 'base.html' %}
+{% block content %}
+<h3>Location Sharing</h3>
+<p class="text-muted">Location is recorded only while this page is open and permission is granted.</p>
+<button id="startBtn" class="btn btn-primary me-2">Start Sharing</button>
+<button id="stopBtn" class="btn btn-secondary">Stop</button>
+<hr>
+<table class="table table-sm table-striped"><thead><tr><th>When</th><th>Lat</th><th>Lon</th><th>Accuracy (m)</th></tr></thead>
+<tbody>
+  {% for p in pings %}
+    <tr><td>{{ p.captured_at }}</td><td>{{ '%.5f' % p.lat }}</td><td>{{ '%.5f' % p.lon }}</td><td>{{ p.accuracy_m or '' }}</td></tr>
+  {% endfor %}
+</tbody></table>
+<script>
+let timer=null; let running=false;
+function ping(){
+  if(!running) return;
+  if(navigator.geolocation){
+    navigator.geolocation.getCurrentPosition(pos=>{
+      fetch('/location/ping',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({lat:pos.coords.latitude, lon:pos.coords.longitude, accuracy:pos.coords.accuracy})})
+    });
+  }
+}
+function start(){ if(running) return; running=true; ping(); timer=setInterval(ping, 5*60*1000);} // every 5 min
+function stop(){ running=false; if(timer){clearInterval(timer); timer=null;} }
+
+document.getElementById('startBtn').onclick=start;
+document.getElementById('stopBtn').onclick=stop;
+</script>
+{% endblock %}

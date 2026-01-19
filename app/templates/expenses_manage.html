@@ -1,0 +1,32 @@
+
+{% extends 'base.html' %}
+{% block content %}
+<h3>Manage Expenses</h3>
+<table class="table table-sm table-striped">
+  <thead>
+    <tr>
+      <th>User</th><th>When</th><th>Amount</th><th>Caption</th><th>Status</th><th>File</th><th>Action</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for e in records %}
+      <tr>
+        <td>{{ e.user_id }}</td>
+        <td>{{ e.submitted_at }}</td>
+        <td>{{ e.currency }} {{ '%.2f' % e.amount }}</td>
+        <td>{{ e.caption }}</td>
+        <td>{{ e.status }}</td>
+        <td>{% if e.file_path %}<a href="/{{ e.file_path }}" target="_blank">Open</a>{% endif %}</td>
+        <td>
+          <form method="post" action="{{ url_for('expenses.approve', eid=e.id) }}" class="d-inline">
+            <button class="btn btn-success btn-sm">Approve</button>
+          </form>
+          <form method="post" action="{{ url_for('expenses.reject', eid=e.id) }}" class="d-inline">
+            <button class="btn btn-warning btn-sm">Reject</button>
+          </form>
+        </td>
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

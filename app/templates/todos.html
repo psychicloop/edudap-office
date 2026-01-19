@@ -1,0 +1,38 @@
+
+{% extends 'base.html' %}
+{% block content %}
+<h3>My Tasks</h3>
+<form class="row g-2 align-items-end" method="post" action="{{ url_for('todos.create') }}">
+  <div class="col-md-3"><label class="form-label">Title</label><input name="title" class="form-control" required></div>
+  <div class="col-md-3"><label class="form-label">Description</label><input name="description" class="form-control"></div>
+  <div class="col-md-2"><label class="form-label">Assignee ID</label><input name="assignee_id" type="number" class="form-control" placeholder="Default me"></div>
+  <div class="col-md-2"><label class="form-label">Due at (UTC)</label><input name="due_at" type="datetime-local" class="form-control"></div>
+  <div class="col-md-2"><label class="form-label">Reminder at (UTC)</label><input name="reminder_at" type="datetime-local" class="form-control"></div>
+  <div class="col-md-2"><label class="form-label">Priority</label>
+    <select name="priority" class="form-select"><option>LOW</option><option selected>MED</option><option>HIGH</option></select>
+  </div>
+  <div class="col-auto"><button class="btn btn-primary">Add</button></div>
+</form>
+<hr>
+<table class="table table-sm table-striped"><thead><tr><th>Title</th><th>Status</th><th>Due</th><th>Reminder</th><th>Action</th></tr></thead>
+<tbody>
+  {% for t in mine %}
+    <tr>
+      <td>{{ t.title }}</td>
+      <td>{{ t.status }}</td>
+      <td>{{ t.due_at }}</td>
+      <td>{{ t.reminder_at }}</td>
+      <td>
+        <form method="post" action="{{ url_for('todos.set_status', tid=t.id) }}" class="d-inline">
+          <select name="status" class="form-select form-select-sm d-inline w-auto">
+            <option {{ 'selected' if t.status=='OPEN' }}>OPEN</option>
+            <option {{ 'selected' if t.status=='IN_PROGRESS' }}>IN_PROGRESS</option>
+            <option {{ 'selected' if t.status=='DONE' }}>DONE</option>
+          </select>
+          <button class="btn btn-sm btn-success">Update</button>
+        </form>
+      </td>
+    </tr>
+  {% endfor %}
+</tbody></table>
+{% endblock %}

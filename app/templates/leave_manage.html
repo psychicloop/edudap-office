@@ -1,0 +1,21 @@
+
+{% extends 'base.html' %}
+{% block content %}
+<h3>Manage Leave Requests</h3>
+<table class="table table-sm table-striped"><thead><tr><th>User</th><th>Dates</th><th>Type</th><th>Reason</th><th>Status</th><th>Action</th></tr></thead>
+<tbody>
+  {% for r in reqs %}
+    <tr>
+      <td>{{ r.user_id }}</td>
+      <td>{{ r.start_date }} → {{ r.end_date }}</td>
+      <td>{{ r.leave_type }}</td>
+      <td>{{ r.reason }}</td>
+      <td>{{ r.status }}</td>
+      <td>
+        <form method="post" action="{{ url_for('leave.approve', req_id=r.id) }}" class="d-inline"><button class="btn btn-success btn-sm">Approve</button></form>
+        <form method="post" action="{{ url_for('leave.reject', req_id=r.id) }}" class="d-inline"><button class="btn btn-warning btn-sm">Reject</button></form>
+      </td>
+    </tr>
+  {% endfor %}
+</tbody></table>
+{% endblock %}
