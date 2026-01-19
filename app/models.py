@@ -2,13 +2,21 @@
 from datetime import datetime
 from enum import Enum
 from flask_login import UserMixin
-from . import db, login_manager
+from . import db   # <-- FIXED: removed login_manager import
 from werkzeug.security import generate_password_hash, check_password_hash
 
+
+# -------------------------
+# ROLE ENUM
+# -------------------------
 class Role(str, Enum):
     ADMIN = 'ADMIN'
     EMPLOYEE = 'EMPLOYEE'
 
+
+# -------------------------
+# USER MODEL
+# -------------------------
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     role = db.Column(db.String(16), default=Role.EMPLOYEE.value, nullable=False)
@@ -28,13 +36,20 @@ class User(UserMixin, db.Model):
     def get_id(self):
         return str(self.id)
 
-@login_manager.user_loader
-def load_user(user_id):
-    return User.query.get(int(user_id))
 
+# ❌ REMOVED — this must NOT be here
+# @login_manager.user_loader
+# def load_user(user_id):
+#     return User.query.get(int(user_id))
+
+
+# -------------------------
+# ATTENDANCE
+# -------------------------
 class AttendanceType(str, Enum):
     CHECK_IN = 'CHECK_IN'
     CHECK_OUT = 'CHECK_OUT'
+
 
 class Attendance(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -45,10 +60,15 @@ class Attendance(db.Model):
     lon = db.Column(db.Float)
     note = db.Column(db.String(255))
 
+
+# -------------------------
+# HOLIDAY REQUESTS
+# -------------------------
 class HolidayStatus(str, Enum):
     PENDING = 'PENDING'
     APPROVED = 'APPROVED'
     REJECTED = 'REJECTED'
+
 
 class HolidayRequest(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -61,10 +81,15 @@ class HolidayRequest(db.Model):
     decided_by = db.Column(db.Integer, db.ForeignKey('user.id'))
     decided_at = db.Column(db.DateTime)
 
+
+# -------------------------
+# EXPENSES
+# -------------------------
 class ExpenseStatus(str, Enum):
     SUBMITTED = 'SUBMITTED'
     APPROVED = 'APPROVED'
     REJECTED = 'REJECTED'
+
 
 class Expense(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -79,6 +104,10 @@ class Expense(db.Model):
     reviewed_by = db.Column(db.Integer, db.ForeignKey('user.id'))
     reviewed_at = db.Column(db.DateTime)
 
+
+# -------------------------
+# LOCATION
+# -------------------------
 class LocationPing(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
@@ -87,15 +116,21 @@ class LocationPing(db.Model):
     accuracy_m = db.Column(db.Float)
     captured_at = db.Column(db.DateTime, default=datetime.utcnow)
 
+
+# -------------------------
+# TODOS
+# -------------------------
 class TodoStatus(str, Enum):
     OPEN = 'OPEN'
     IN_PROGRESS = 'IN_PROGRESS'
     DONE = 'DONE'
 
+
 class Priority(str, Enum):
     LOW = 'LOW'
     MED = 'MED'
     HIGH = 'HIGH'
+
 
 class Todo(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -109,6 +144,10 @@ class Todo(db.Model):
     status = db.Column(db.String(16), default=TodoStatus.OPEN.value)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
+
+# -------------------------
+# NOTIFICATIONS
+# -------------------------
 class Notification(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
@@ -117,6 +156,10 @@ class Notification(db.Model):
     is_read = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
+
+# -------------------------
+# QUOTATIONS
+# -------------------------
 class Quotation(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     uploaded_by = db.Column(db.Integer, db.ForeignKey('user.id'))
