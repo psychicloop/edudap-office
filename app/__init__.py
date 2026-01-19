@@ -1,66 +1,73 @@
 
-from flask import Flask, redirect, url_for, send_from_directory
-from flask_sqlalchemy import SQLAlchemy
-from flask_login import LoginManager
-import os
 
-db = SQLAlchemy()
+{% extends 'base.html' %}
+{% block content %}
+<h3>My Expenses</h3>
 
+{{ url_for(
 
-def create_app():
-    app = Flask(__name__)
-    app.config['SECRET_KEY'] = os.environ.get("SECRET_KEY", "change-me")
-    app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get("DATABASE_URL", "sqlite:///app.db")
-    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+  <div class="col-md-2">
+    <label class="form-label">Amount</label>
+    <input name="amount" type="number" step="0.01" class="form-control" required>
+  </div>
 
-    db.init_app(app)
+  <div class="col-md-2">
+    <label class="form-label">Currency</label>
+    <input name="currency" value="INR" class="form-control">
+  </div>
 
-    # -------------------------
-    # LOGIN MANAGER
-    # -------------------------
-    from .models import User
-    login_manager = LoginManager()
-    login_manager.login_view = 'auth.login'
-    login_manager.init_app(app)
+  <div class="col-md-3">
+    <label class="form-label">Category</label>
+    <input name="category" class="form-control">
+  </div>
 
-    @login_manager.user_loader
-    def load_user(user_id):
-        return User.query.get(int(user_id))
+  <div class="col-md-3">
+    <label class="form-label">Caption</label>
+    <input name="caption" class="form-control">
+  </div>
 
-    # -------------------------
-    # BLUEPRINTS
-    # -------------------------
-    from .auth import auth_bp
-    from .attendance import attendance_bp
-    from .leave import leave_bp
-    from .expenses import expenses_bp
-    from .location import location_bp
-    from .todos import todos_bp
-    from .quotations import quotations_bp
-    from .admin import admin_bp
+  <div class="col-md-3">
+    <label class="form-label">Attachment</label>
+    <input name="attachment" type="file" class="form-control">
+  </div>
 
-    app.register_blueprint(auth_bp, url_prefix="/auth")
-    app.register_blueprint(attendance_bp, url_prefix="/attendance")
-    app.register_blueprint(leave_bp, url_prefix="/leave")
-    app.register_blueprint(expenses_bp, url_prefix="/expenses")
-    app.register_blueprint(location_bp, url_prefix="/location")
-    app.register_blueprint(todos_bp, url_prefix="/todos")
-    app.register_blueprint(quotations_bp, url_prefix="/quotations")
-    app.register_blueprint(admin_bp, url_prefix="/admin")
+  <div class="col-auto">
+    <button class="btn btn-primary">Submit</button>
+  </div>
+</form>
 
-    # -------------------------
-    # SERVE UPLOADED FILES
-    # -------------------------
-    @app.route("/uploads/<path:filename>")
-    def uploaded_files(filename):
-        uploads_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "uploads"))
-        return send_from_directory(uploads_dir, filename)
+<hr>
 
-    # -------------------------
-    # ROOT → LOGIN
-    # -------------------------
-    @app.route("/")
-    def root():
-        return redirect(url_for("auth.login"))
+<div class="table-responsive">
+  <table class="table table-sm table-striped align-middle">
+    <thead>
+      <tr>
+        <th>When</th>
+        <th>Amount</th>
+        <th>Caption</th>
+        <th>Status</th>
+        <th>File</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for e in records %}
+        <tr>
+          <td>{{ e.submitted_at }}</td>
+          <td>{{ e.currency }} {{ '%.2f' % e.amount }}</td>
+          <td>{{ e.caption }}</td>
+          <td>{{ e.status }}</td>
+          <td>
+            {% if e.file_path %}
+              <!-- file_path like: uploads/expenses/xxx.pdf -->
+              /{{ e.file_path }}
+                📎 Open
+              </a>
+            {% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}
 
-    return app
