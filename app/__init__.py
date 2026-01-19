@@ -4,7 +4,11 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
 import os
 
+# -------------------------
+# EXTENSIONS (GLOBAL SINGLETONS)
+# -------------------------
 db = SQLAlchemy()
+login_manager = LoginManager()   # <-- FIXED: moved to top level
 
 
 def create_app():
@@ -13,15 +17,17 @@ def create_app():
     app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get("DATABASE_URL", "sqlite:///app.db")
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
+    # -------------------------
+    # INITIALIZE EXTENSIONS
+    # -------------------------
     db.init_app(app)
+    login_manager.init_app(app)
+    login_manager.login_view = "auth.login"
 
     # -------------------------
-    # LOGIN MANAGER
+    # USER LOADER
     # -------------------------
     from .models import User
-    login_manager = LoginManager()
-    login_manager.login_view = 'auth.login'
-    login_manager.init_app(app)
 
     @login_manager.user_loader
     def load_user(user_id):
@@ -57,7 +63,7 @@ def create_app():
         return send_from_directory(uploads_dir, filename)
 
     # -------------------------
-    # ROOT → LOGIN
+    # ROOT REDIRECT
     # -------------------------
     @app.route("/")
     def root():
