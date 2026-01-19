@@ -8,7 +8,7 @@ import os
 # EXTENSIONS (GLOBAL SINGLETONS)
 # -------------------------
 db = SQLAlchemy()
-login_manager = LoginManager()   # <-- FIXED: moved to top level
+login_manager = LoginManager()   # keep at module level
 
 
 def create_app():
@@ -31,6 +31,7 @@ def create_app():
 
     @login_manager.user_loader
     def load_user(user_id):
+        # SQLAlchemy 2.x: Query.get is still available via Session, but this is fine for now
         return User.query.get(int(user_id))
 
     # -------------------------
@@ -68,5 +69,11 @@ def create_app():
     @app.route("/")
     def root():
         return redirect(url_for("auth.login"))
+
+    # -------------------------
+    # CREATE TABLES (first boot, SQLite or empty DB on Render)
+    # -------------------------
+    with app.app_context():
+        db.create_all()
 
     return app
