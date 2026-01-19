@@ -2,7 +2,7 @@
 from datetime import datetime
 from enum import Enum
 from flask_login import UserMixin
-from . import db   # <-- FIXED: removed login_manager import
+from . import db
 from werkzeug.security import generate_password_hash, check_password_hash
 
 
@@ -35,12 +35,6 @@ class User(UserMixin, db.Model):
 
     def get_id(self):
         return str(self.id)
-
-
-# ❌ REMOVED — this must NOT be here
-# @login_manager.user_loader
-# def load_user(user_id):
-#     return User.query.get(int(user_id))
 
 
 # -------------------------
