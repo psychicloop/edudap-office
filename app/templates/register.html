@@ -4,21 +4,33 @@
 <div class="row justify-content-center mt-5">
     <div class="col-md-4">
         <div class="card shadow border-0">
-            <div class="card-body p-4 text-center">
-                <h3 class="mb-4 text-primary fw-bold">EduDAP CRM</h3>
-                <p class="text-muted small">Create your account to start</p>
+            <div class="card-body p-4">
+                <h3 class="text-center mb-4 text-primary fw-bold">User Registration</h3>
                 <form method="POST" action="{{ url_for('auth.register') }}">
-                    <div class="mb-3 text-start">
-                        <label class="form-label">Username</label>
-                        <input type="text" name="username" class="form-control" placeholder="Choose a username" required>
+                    <div class="mb-3">
+                        <label class="form-label">Full Name</label>
+                        <input type="text" name="username" class="form-control" placeholder="Enter full name" required>
                     </div>
-                    <div class="mb-4 text-start">
+                    <div class="mb-3">
+                        <label class="form-label">Email Address</label>
+                        <input type="email" name="email" class="form-control" placeholder="name@company.com" required>
+                    </div>
+                    <div class="mb-3">
                         <label class="form-label">Password</label>
-                        <input type="password" name="password" class="form-control" placeholder="Create password" required>
+                        <input type="password" name="password" class="form-control" required>
                     </div>
-                    <button type="submit" class="btn btn-success w-100">Register</button>
+                    <div class="mb-4">
+                        <label class="form-label">Register As</label>
+                        <select name="role" class="form-select">
+                            <option value="Employee">Employee</option>
+                            <option value="Admin">Admin</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-success w-100 py-2">Create Account</button>
                 </form>
-                <p class="mt-3 small">Already have an account? <a href="{{ url_for('auth.login') }}">Login</a></p>
+                <div class="text-center mt-3">
+                    <small><a href="{{ url_for('auth.login') }}">Back to Login</a></small>
+                </div>
             </div>
         </div>
     </div>
