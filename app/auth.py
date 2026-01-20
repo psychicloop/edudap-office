@@ -8,13 +8,18 @@ auth_bp = Blueprint('auth', __name__, url_prefix='/auth')
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
+        # Labels here match the 'name' attributes in the HTML forms
         username = request.form.get('username')
         password = request.form.get('password')
+        
         user = User.query.filter_by(username=username).first()
+        
         if user and check_password_hash(user.password_hash, password):
             login_user(user)
+            # This redirect takes you to the dashboard
             return redirect(url_for('admin.dashboard'))
-        flash('Invalid username or password', 'danger')
+        
+        flash('Invalid username or password.', 'danger')
     return render_template('login.html')
 
 @auth_bp.route('/register', methods=['GET', 'POST'])
@@ -26,13 +31,13 @@ def register():
         role = request.form.get('role', 'Employee')
 
         if User.query.filter_by(username=username).first():
-            flash('Username already exists', 'warning')
+            flash('Username already exists.', 'warning')
             return redirect(url_for('auth.register'))
 
         new_user = User(
-            username=username, 
-            email=email, 
-            role=role, 
+            username=username,
+            email=email,
+            role=role,
             password_hash=generate_password_hash(password)
         )
         db.session.add(new_user)
@@ -41,7 +46,6 @@ def register():
         return redirect(url_for('auth.login'))
     return render_template('register.html')
 
-# FIX: Added the explicit logout route to stop the 500 error
 @auth_bp.route('/logout')
 @login_required
 def logout():
@@ -52,4 +56,4 @@ def logout():
 def magic_reset():
     db.drop_all()
     db.create_all()
-    return "Database Cleaned! Register a new account."
+    return "Database Reset! Go to /auth/register to create your Admin account."
