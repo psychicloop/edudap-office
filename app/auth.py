@@ -26,10 +26,15 @@ def register():
         r = request.form.get('role', 'Employee')
 
         if User.query.filter_by(username=u).first():
-            flash('Username taken', 'warning')
+            flash('Username already exists', 'warning')
             return redirect(url_for('auth.register'))
 
-        new_user = User(username=u, email=e, role=r, password_hash=generate_password_hash(p))
+        new_user = User(
+            username=u, 
+            email=e, 
+            role=r, 
+            password_hash=generate_password_hash(p)
+        )
         db.session.add(new_user)
         db.session.commit()
         return redirect(url_for('auth.login'))
@@ -45,4 +50,4 @@ def logout():
 def magic_reset():
     db.drop_all()
     db.create_all()
-    return "Database Recreated! Please Register now."
+    return "Database Recreated! Go to /auth/register now."
