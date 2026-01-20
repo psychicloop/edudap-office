@@ -1,7 +1,7 @@
 from flask import Flask, redirect, url_for, send_from_directory
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
-from sqlalchemy import text  # <--- IMPORT THIS
+from sqlalchemy import text
 import os
 
 # -------------------------
@@ -11,7 +11,15 @@ db = SQLAlchemy()
 login_manager = LoginManager()   
 
 def create_app():
-    app = Flask(__name__)
+    # -------------------------
+    # FIX: TELL FLASK WHERE STATIC FILES ARE
+    # -------------------------
+    # We explicitly tell Flask that the static folder is one level up (../static)
+    # and templates are one level up (../templates)
+    app = Flask(__name__, 
+                static_folder='../static', 
+                template_folder='../templates')
+
     app.config['SECRET_KEY'] = os.environ.get("SECRET_KEY", "change-me")
     app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get("DATABASE_URL", "sqlite:///app.db")
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
@@ -81,11 +89,7 @@ def create_app():
     # CREATE TABLES & FIX SEARCH TABLE
     # -------------------------
     with app.app_context():
-        # 1. Create standard tables
         db.create_all()
-        
-        # 2. MANUALLY Create the missing Search Table (FTS)
-        # We wrap this in a try-except block to prevent crashes if it already exists or errors out
         try:
             db.session.execute(text("""
                 CREATE VIRTUAL TABLE IF NOT EXISTS quotation_fts USING fts5(
