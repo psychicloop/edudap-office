@@ -25,7 +25,7 @@
         .auth-header {
             background: white;
             border-bottom: 3px solid var(--edudap-teal);
-            padding: 1rem 0; /* Reduced padding for tighter look */
+            padding: 1rem 0; 
             text-align: center;
         }
         .auth-logo {
@@ -79,7 +79,6 @@
     <div class="auth-header shadow-sm">
         <div class="container d-flex justify-content-center align-items-center">
             <img src="{{ url_for('static', filename='logo.png') }}" alt="EduDAP" class="auth-logo">
-            
             <span class="crm-title">CRM</span>
         </div>
     </div>
@@ -98,7 +97,8 @@
             
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav mx-auto align-items-center">
-                    <li class="nav-item"><a class="nav-link" href="javascript:void(0);">Attendance</a></li>
+                    <li class="nav-item"><a class="nav-link" href="{{ url_for('admin.attendance') }}">Attendance</a></li>
+                    
                     <li class="nav-item"><a class="nav-link" href="javascript:void(0);">Leave</a></li>
                     <li class="nav-item"><a class="nav-link" href="javascript:void(0);">Expenses</a></li>
                     <li class="nav-item"><a class="nav-link" href="javascript:void(0);">To-do List</a></li>
