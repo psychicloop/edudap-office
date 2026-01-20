@@ -22,7 +22,6 @@ class Priority:
     MEDIUM = 'Medium'
     HIGH = 'High'
 
-# FIX: Added ExpenseStatus class so expenses.py works
 class ExpenseStatus:
     PENDING = 'Pending'
     APPROVED = 'Approved'
@@ -73,4 +72,14 @@ class HolidayRequest(db.Model):
     reason = db.Column(db.String(200), nullable=False)
     status = db.Column(db.String(20), default=HolidayStatus.PENDING)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    user = db.relationship('User', backref='holiday_requests
+    user = db.relationship('User', backref='holiday_requests')
+
+class Todo(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    title = db.Column(db.String(200), nullable=False)
+    status = db.Column(db.String(20), default=TodoStatus.PENDING)
+    priority = db.Column(db.String(20), default=Priority.MEDIUM)
+    due_date = db.Column(db.DateTime, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    user = db.relationship('User', backref='todos')
