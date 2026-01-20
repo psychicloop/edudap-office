@@ -1,6 +1,6 @@
 import os
 import pandas as pd
-from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app
+from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app, send_from_directory
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 from .models import Quotation, Expense, db
@@ -17,11 +17,8 @@ def allowed_file(filename):
 @login_required
 def dashboard():
     query = request.args.get('q')
-    
-    # Base Query
     sql_query = Quotation.query.filter_by(user_id=current_user.id)
 
-    # Search Logic
     if query:
         search = f"%{query}%"
         sql_query = sql_query.filter(
@@ -50,9 +47,7 @@ def upload_file():
         if 'file' not in request.files:
             flash('No file selected', 'danger')
             return redirect(request.url)
-        
         file = request.files['file']
-        
         if file.filename == '':
             flash('No file selected', 'danger')
             return redirect(request.url)
@@ -60,17 +55,15 @@ def upload_file():
         if file and allowed_file(file.filename):
             filename = secure_filename(file.filename)
             
-            # Note: File saving to disk would happen here.
+            # --- 1. SAVE FILE PHYSICALLY ---
+            upload_folder = os.path.join(current_app.root_path, 'static', 'uploads')
+            os.makedirs(upload_folder, exist_ok=True) # Ensure folder exists
+            file.save(os.path.join(upload_folder, filename))
             
+            # --- 2. SAVE TO DB ---
             client = request.form.get('client_name')
             details = request.form.get('product_details')
-            
-            new_quote = Quotation(
-                filename=filename,
-                client_name=client,
-                product_details=details,
-                user_id=current_user.id
-            )
+            new_quote = Quotation(filename=filename, client_name=client, product_details=details, user_id=current_user.id)
             db.session.add(new_quote)
             db.session.commit()
             
@@ -78,24 +71,40 @@ def upload_file():
             return redirect(url_for('admin.dashboard'))
         else:
             flash('Invalid file type. Only PDF and Excel allowed.', 'warning')
-            
     return render_template('upload.html')
+
+@admin_bp.route('/download/<int:file_id>')
+@login_required
+def download_file(file_id):
+    quote = Quotation.query.get_or_404(file_id)
+    upload_folder = os.path.join(current_app.root_path, 'static', 'uploads')
+    try:
+        return send_from_directory(upload_folder, quote.filename, as_attachment=True)
+    except FileNotFoundError:
+        flash("File not found on server.", "danger")
+        return redirect(url_for('admin.dashboard'))
 
 @admin_bp.route('/view_file/<int:file_id>')
 @login_required
 def view_file(file_id):
-    # Get the file record
     quote = Quotation.query.get_or_404(file_id)
+    upload_folder = os.path.join(current_app.root_path, 'static', 'uploads')
+    file_path = os.path.join(upload_folder, quote.filename)
     
-    # Determine file type
     ext = quote.filename.rsplit('.', 1)[1].lower()
     
     if ext in ['xlsx', 'xls']:
-        # LOGIC FOR EXCEL VIEW
-        # We render a dedicated template that mimics the Excel interface
-        return render_template('excel_view.html', filename=quote.filename)
-            
+        try:
+            # Read actual file
+            df = pd.read_excel(file_path)
+            # Create a simple list of rows for the template to render raw
+            # replacing NaN with empty string
+            data = df.fillna('').values.tolist()
+            columns = df.columns.tolist()
+            return render_template('excel_view.html', filename=quote.filename, columns=columns, data=data)
+        except Exception as e:
+            flash(f"Error reading file: {str(e)}", "danger")
+            return redirect(url_for('admin.dashboard'))
     else:
-        # PDF View Logic (Not focusing on this yet per instructions)
-        flash("File format not supported for grid view.", "info")
-        return redirect(url_for('admin.dashboard'))
+        # For PDF, we just download for now (browsers handle PDFs differently)
+        return redirect(url_for('admin.download_file', file_id=file_id))
