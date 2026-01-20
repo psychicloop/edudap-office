@@ -2,25 +2,30 @@
 
 {% block content %}
 <div class="container-fluid">
+  
   <div class="d-flex justify-content-between align-items-center mb-4">
-    <h2 style="margin:0;">Quotations Repository</h2>
+    <h2 style="margin:0; color: var(--brand-blue);">Quotations Repository</h2>
   </div>
 
   <div class="card mb-4">
-    <h5 class="card-title mb-3" style="color: var(--brand-blue);">Upload New Quotation (Excel/PDF)</h5>
-    <form action="{{ url_for('quotations.upload_file') }}" method="post" enctype="multipart/form-data" class="d-flex gap-3 align-items-end">
+    <h5 class="card-title mb-3" style="color: var(--brand-blue); border-bottom: 1px solid #eee; padding-bottom: 10px;">
+      <i class="bi bi-cloud-upload me-2"></i>Upload Quotation
+    </h5>
+    
+    <form action="{{ url_for('quotations.upload') }}" method="post" enctype="multipart/form-data" class="d-flex gap-3 align-items-end">
       
       <div style="flex-grow: 1;">
-        <label for="fileInput" class="form-label">Select File</label>
-        <input type="file" class="form-control" id="fileInput" name="file" required>
+        <label class="form-label" style="font-weight: 600;">Select Excel or PDF File</label>
+        <input type="file" class="form-control" name="file" required>
       </div>
 
       <button type="submit" class="btn btn-primary" style="height: fit-content;">
-        <i class="bi bi-cloud-upload me-1"></i> Upload
+        Upload File
       </button>
     </form>
+    
     <p class="text-muted mt-2" style="font-size: 0.85rem;">
-      * Upload Excel (.xlsx, .csv) to enable detailed item search. PDFs are for viewing only.
+      * <strong>Tip:</strong> Uploading an Excel file allows the system to automatically read items and prices later.
     </p>
   </div>
 
@@ -30,33 +35,34 @@
       <table class="table table-hover align-middle">
         <thead class="table-light">
           <tr>
-            <th scope="col" style="width: 5%;">ID</th>
-            <th scope="col" style="width: 40%;">Filename / Addressed To</th>
-            <th scope="col" style="width: 15%;">Uploaded By</th>
-            <th scope="col" style="width: 15%;">Date</th>
-            <th scope="col" style="width: 15%; text-align: right;">Actions</th>
+            <th style="width: 5%;">#</th>
+            <th style="width: 50%;">File Name</th>
+            <th style="width: 20%;">Date</th>
+            <th style="width: 25%; text-align: right;">Action</th>
           </tr>
         </thead>
         <tbody>
           {% for q in quotations %}
           <tr>
-            <td><span class="text-muted">#{{ q.id }}</span></td>
-            <td style="font-weight: 500; color: var(--brand-blue);">
-                <i class="bi bi-file-earmark-text me-2"></i>
+            <td>{{ q.id }}</td>
+            <td style="font-weight: 500; color: var(--text-main);">
+                {% if q.filename.endswith('.pdf') %}
+                  <i class="bi bi-file-pdf text-danger me-2"></i>
+                {% else %}
+                  <i class="bi bi-file-earmark-excel text-success me-2"></i>
+                {% endif %}
                 {{ q.filename }}
             </td>
-            <td>{{ q.uploader.username if q.uploader else 'Unknown' }}</td>
             <td>{{ q.uploaded_at.strftime('%Y-%m-%d') }}</td>
             <td class="text-end">
                 <a href="{{ url_for('uploaded_files', filename=q.filepath) }}" target="_blank" class="btn btn-sm btn-outline-primary">
-                    <i class="bi bi-eye me-1"></i> View/Download
+                    View / Download
                 </a>
             </td>
           </tr>
           {% else %}
           <tr>
-            <td colspan="5" class="text-center p-4 text-muted">
-              <i class="bi bi-inbox fs-4 d-block mb-2"></i>
+            <td colspan="4" class="text-center p-4 text-muted">
               No quotations uploaded yet.
             </td>
           </tr>
