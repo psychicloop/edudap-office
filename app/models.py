@@ -6,9 +6,6 @@ from datetime import datetime
 class AttendanceType:
     PRESENT, ABSENT, HALF_DAY = 'Present', 'Absent', 'Half Day'
 
-class HolidayStatus:
-    PENDING, APPROVED, REJECTED = 'Pending', 'Approved', 'Rejected'
-
 class ExpenseStatus:
     PENDING, APPROVED, REJECTED = 'Pending', 'Approved', 'Rejected'
 
@@ -30,11 +27,8 @@ class User(UserMixin, db.Model):
 class Quotation(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     filename = db.Column(db.String(200), nullable=False)
-    
-    # New Fields for "Smart Search"
-    client_name = db.Column(db.String(100), nullable=True) # Stores "To: Name"
-    product_details = db.Column(db.String(500), nullable=True) # Stores Make/Cat No
-    
+    client_name = db.Column(db.String(100), nullable=True)
+    product_details = db.Column(db.String(500), nullable=True)
     uploaded_at = db.Column(db.DateTime, default=datetime.utcnow)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     user = db.relationship('User', backref='quotations')
@@ -50,26 +44,14 @@ class Expense(db.Model):
 class Attendance(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     date = db.Column(db.Date, nullable=False)
+    
+    # NEW FIELDS FOR PUNCH IN/OUT
+    in_time = db.Column(db.DateTime, nullable=True)
+    out_time = db.Column(db.DateTime, nullable=True)
+    
     status = db.Column(db.String(20), default=AttendanceType.ABSENT)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     user = db.relationship('User', backref='attendance_records')
-
-class HolidayRequest(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    start_date = db.Column(db.Date, nullable=False)
-    end_date = db.Column(db.Date, nullable=False)
-    reason = db.Column(db.String(200), nullable=False)
-    status = db.Column(db.String(20), default=HolidayStatus.PENDING)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    user = db.relationship('User', backref='holiday_requests')
-
-class LocationPing(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    latitude = db.Column(db.Float, nullable=False)
-    longitude = db.Column(db.Float, nullable=False)
-    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    user = db.relationship('User', backref='pings')
 
 class Todo(db.Model):
     id = db.Column(db.Integer, primary_key=True)
