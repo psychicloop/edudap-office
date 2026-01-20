@@ -5,29 +5,40 @@ from sqlalchemy import text
 import os
 
 # -------------------------
-# EXTENSIONS (GLOBAL SINGLETONS)
+# EXTENSIONS
 # -------------------------
 db = SQLAlchemy()
 login_manager = LoginManager()   
 
 def create_app():
     # -------------------------
-    # FIX: TELL FLASK WHERE STATIC FILES ARE
+    # SMART FOLDER DETECTION
     # -------------------------
-    # We explicitly tell Flask that the static folder is one level up (../static)
-    # and templates are one level up (../templates)
-    app = Flask(__name__, 
-                static_folder='../static', 
-                template_folder='../templates')
+    base_dir = os.path.abspath(os.path.dirname(__file__))
+    
+    # Check if 'templates' is inside 'app' or outside 'app'
+    if os.path.exists(os.path.join(base_dir, 'templates')):
+        template_dir = 'templates'
+    else:
+        template_dir = '../templates'
+        
+    # Check if 'static' is inside 'app' or outside 'app'
+    if os.path.exists(os.path.join(base_dir, 'static')):
+        static_dir = 'static'
+    else:
+        static_dir = '../static'
+
+    # Initialize App with the correct folders
+    app = Flask(__name__, template_folder=template_dir, static_folder=static_dir)
 
     app.config['SECRET_KEY'] = os.environ.get("SECRET_KEY", "change-me")
     app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get("DATABASE_URL", "sqlite:///app.db")
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
     # -------------------------
-    # CONFIGURE UPLOAD FOLDER
+    # UPLOAD FOLDER CONFIG
     # -------------------------
-    base_dir = os.path.abspath(os.path.dirname(__file__))
+    # We save uploads one level up from the app
     upload_folder = os.path.join(base_dir, '..', 'uploads')
     app.config['UPLOAD_FOLDER'] = upload_folder
     
@@ -86,11 +97,12 @@ def create_app():
         return redirect(url_for("auth.login"))
 
     # -------------------------
-    # CREATE TABLES & FIX SEARCH TABLE
+    # DATABASE & SEARCH TABLE SETUP
     # -------------------------
     with app.app_context():
         db.create_all()
         try:
+            # Create the Search Table if it doesn't exist
             db.session.execute(text("""
                 CREATE VIRTUAL TABLE IF NOT EXISTS quotation_fts USING fts5(
                     parsed_text, 
