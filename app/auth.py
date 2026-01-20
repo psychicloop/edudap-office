@@ -25,13 +25,19 @@ def register():
         p = request.form.get('password')
         r = request.form.get('role', 'Employee')
 
+        # Check for duplicates so the database doesn't crash
         if User.query.filter_by(username=u).first():
-            flash('Username already exists.', 'warning')
+            flash('This Name is already taken. Choose another.', 'warning')
+            return redirect(url_for('auth.register'))
+            
+        if User.query.filter_by(email=e).first():
+            flash('This Email is already in use. Please use a different one.', 'warning')
             return redirect(url_for('auth.register'))
 
         new_user = User(username=u, email=e, role=r, password_hash=generate_password_hash(p))
         db.session.add(new_user)
         db.session.commit()
+        flash('Account created! You can now log in.', 'success')
         return redirect(url_for('auth.login'))
     return render_template('register.html')
 
@@ -45,4 +51,4 @@ def logout():
 def magic_reset():
     db.drop_all()
     db.create_all()
-    return "DATABASE RECREATED. Go to /auth/register and register your ADMIN first."
+    return "DATABASE CLEANED. Go to /auth/register and register your Admin account now."
