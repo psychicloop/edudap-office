@@ -1,4 +1,3 @@
-
 from flask import Flask, redirect, url_for, send_from_directory
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
@@ -10,12 +9,26 @@ import os
 db = SQLAlchemy()
 login_manager = LoginManager()   # keep at module level
 
-
 def create_app():
     app = Flask(__name__)
     app.config['SECRET_KEY'] = os.environ.get("SECRET_KEY", "change-me")
     app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get("DATABASE_URL", "sqlite:///app.db")
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+    # -------------------------
+    # FIX: CONFIGURE UPLOAD FOLDER
+    # -------------------------
+    # This determines where the folder is relative to this file
+    base_dir = os.path.abspath(os.path.dirname(__file__))
+    # We go up one level (..) to the root folder, then into 'uploads'
+    upload_folder = os.path.join(base_dir, '..', 'uploads')
+    
+    # 1. Tell Flask where the folder is
+    app.config['UPLOAD_FOLDER'] = upload_folder
+    
+    # 2. Create the folder if it doesn't exist (Critical for Render)
+    if not os.path.exists(upload_folder):
+        os.makedirs(upload_folder)
 
     # -------------------------
     # INITIALIZE EXTENSIONS
@@ -31,7 +44,6 @@ def create_app():
 
     @login_manager.user_loader
     def load_user(user_id):
-        # SQLAlchemy 2.x: Query.get is still available via Session, but this is fine for now
         return User.query.get(int(user_id))
 
     # -------------------------
@@ -60,8 +72,8 @@ def create_app():
     # -------------------------
     @app.route("/uploads/<path:filename>")
     def uploaded_files(filename):
-        uploads_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "uploads"))
-        return send_from_directory(uploads_dir, filename)
+        # We use the same config we defined above to ensure consistency
+        return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
     # -------------------------
     # ROOT REDIRECT
@@ -71,7 +83,7 @@ def create_app():
         return redirect(url_for("auth.login"))
 
     # -------------------------
-    # CREATE TABLES (first boot, SQLite or empty DB on Render)
+    # CREATE TABLES
     # -------------------------
     with app.app_context():
         db.create_all()
