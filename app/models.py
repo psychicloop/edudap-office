@@ -2,12 +2,18 @@ from . import db
 from flask_login import UserMixin
 from datetime import datetime
 
+# --- USER & ROLES ---
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(150), unique=True, nullable=False)
     password = db.Column(db.String(150), nullable=False)
     role = db.Column(db.String(50), default='User') 
 
+class Role:
+    ADMIN = 'Admin'
+    USER = 'User'
+
+# --- EXPENSES ---
 class Expense(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
@@ -28,24 +34,17 @@ class ExpenseStatus:
     APPROVED = 'Approved'
     REJECTED = 'Rejected'
 
-class Role:
-    ADMIN = 'Admin'
-    USER = 'User'
-
-# --- THIS WAS MISSING ---
-class AttendanceType:
-    PRESENT = 'Present'
-    ABSENT = 'Absent'
-    HALF_DAY = 'Half Day'
-
+# --- QUOTATIONS ---
 class Quotation(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     filename = db.Column(db.String(300))
     filepath = db.Column(db.String(500)) 
     uploaded_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
     uploader = db.relationship('User', backref='uploads')
 
+# --- ATTENDANCE ---
 class Attendance(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
@@ -55,11 +54,28 @@ class Attendance(db.Model):
     status = db.Column(db.String(20), default='Present')
     user = db.relationship('User', backref='attendance')
 
-class Leave(db.Model):
+class AttendanceType:
+    PRESENT = 'Present'
+    ABSENT = 'Absent'
+    HALF_DAY = 'Half Day'
+
+# --- LEAVE / HOLIDAYS ---
+# We renamed this from 'Leave' to 'HolidayRequest' to match your leave.py code
+class HolidayRequest(db.Model):
+    __tablename__ = 'leave'  # Saves to a table named 'leave' in DB
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     start_date = db.Column(db.DateTime, nullable=False)
     end_date = db.Column(db.DateTime, nullable=False)
     reason = db.Column(db.String(200))
     status = db.Column(db.String(20), default='Pending')
+    
     user = db.relationship('User', backref='leaves')
+
+class HolidayStatus:
+    PENDING = 'Pending'
+    APPROVED = 'Approved'
+    REJECTED = 'Rejected'
+
+# (Optional: Alias if any other code uses 'Leave')
+Leave = HolidayRequest
