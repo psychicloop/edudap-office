@@ -7,8 +7,7 @@ auth_bp = Blueprint('auth', __name__, url_prefix='/auth')
 
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login():
-    # FIX: If user is already logged in, kick them to Dashboard immediately.
-    # This prevents the "Header on Login Page" glitch.
+    # If user is already logged in, send them to dashboard
     if current_user.is_authenticated:
         return redirect(url_for('admin.dashboard'))
 
@@ -24,9 +23,10 @@ def login():
 
 @auth_bp.route('/register', methods=['GET', 'POST'])
 def register():
-    # Same fix here: Don't let logged-in users register new accounts
-    if current_user.is_authenticated:
-        return redirect(url_for('admin.dashboard'))
+    # Note: We allow logged-in users to access this if they want to create other accounts,
+    # or you can uncomment the next two lines to block logged-in users from registering.
+    # if current_user.is_authenticated:
+    #     return redirect(url_for('admin.dashboard'))
 
     if request.method == 'POST':
         u = request.form.get('username')
@@ -42,17 +42,22 @@ def register():
             flash('This Email is already in use. Please use a different one.', 'warning')
             return redirect(url_for('auth.register'))
 
+        # Create the new user
         new_user = User(username=u, email=e, role=r, password_hash=generate_password_hash(p))
         db.session.add(new_user)
         db.session.commit()
-        flash('Account created! You can now log in.', 'success')
+        
+        # STRICT FLOW: Register -> Login Page (Do not auto-login)
+        flash('Account created successfully! Please log in.', 'success')
         return redirect(url_for('auth.login'))
+        
     return render_template('register.html')
 
 @auth_bp.route('/logout')
 @login_required
 def logout():
     logout_user()
+    flash('You have been logged out.', 'info')
     return redirect(url_for('auth.login'))
 
 @auth_bp.route('/magic-reset')
