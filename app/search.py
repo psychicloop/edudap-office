@@ -58,9 +58,10 @@ def remove_fts(quotation):
     db.session.execute(text(sql), {'id': quotation.id})
     db.session.commit()
 
-def query_fts(query_string):
+def search_fts(query_string):
     """
     Searches the FTS table for matching records.
+    Renamed from query_fts to match what quotations.py expects.
     """
     sql = """
         SELECT rowid FROM quotation_fts 
