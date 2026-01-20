@@ -2,9 +2,8 @@ from . import db
 from flask_login import UserMixin
 from datetime import datetime
 
-# --- ENUMS ---
+# --- ENUMS (The missing pieces) ---
 
-# FIX: Added AttendanceType back to prevent the crash in attendance.py
 class AttendanceType:
     PRESENT = 'Present'
     ABSENT = 'Absent'
@@ -30,6 +29,7 @@ class ExpenseStatus:
     REJECTED = 'Rejected'
 
 # --- MODELS ---
+
 class Role(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(50), unique=True)
