@@ -1,4 +1,5 @@
 import os
+import pandas as pd
 from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
@@ -46,7 +47,6 @@ def dashboard():
 @login_required
 def upload_file():
     if request.method == 'POST':
-        # check if the post request has the file part
         if 'file' not in request.files:
             flash('No file selected', 'danger')
             return redirect(request.url)
@@ -60,12 +60,10 @@ def upload_file():
         if file and allowed_file(file.filename):
             filename = secure_filename(file.filename)
             
-            # Extract basic info from form if provided
+            # Note: File saving to disk would happen here.
+            
             client = request.form.get('client_name')
             details = request.form.get('product_details')
-            
-            # Save logic would go here (saving to disk or cloud)
-            # For now, we simulate saving to DB
             
             new_quote = Quotation(
                 filename=filename,
@@ -82,3 +80,22 @@ def upload_file():
             flash('Invalid file type. Only PDF and Excel allowed.', 'warning')
             
     return render_template('upload.html')
+
+@admin_bp.route('/view_file/<int:file_id>')
+@login_required
+def view_file(file_id):
+    # Get the file record
+    quote = Quotation.query.get_or_404(file_id)
+    
+    # Determine file type
+    ext = quote.filename.rsplit('.', 1)[1].lower()
+    
+    if ext in ['xlsx', 'xls']:
+        # LOGIC FOR EXCEL VIEW
+        # We render a dedicated template that mimics the Excel interface
+        return render_template('excel_view.html', filename=quote.filename)
+            
+    else:
+        # PDF View Logic (Not focusing on this yet per instructions)
+        flash("File format not supported for grid view.", "info")
+        return redirect(url_for('admin.dashboard'))
