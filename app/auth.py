@@ -14,29 +14,31 @@ def login():
         if user and check_password_hash(user.password_hash, password):
             login_user(user)
             return redirect(url_for('admin.dashboard'))
-        flash('Invalid credentials', 'danger')
+        flash('Invalid username or password', 'danger')
     return render_template('login.html')
 
 @auth_bp.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
         username = request.form.get('username')
-        password = request.form.get('password')
-        # We handle these even if they aren't in the base User model yet to prevent crashes
         email = request.form.get('email')
-        role = request.form.get('role')
+        password = request.form.get('password')
+        role = request.form.get('role', 'Employee')
 
         if User.query.filter_by(username=username).first():
-            flash('User already exists', 'warning')
+            flash('Username already taken', 'warning')
             return redirect(url_for('auth.register'))
-
+        
+        # Saving with email and role
         new_user = User(
             username=username, 
+            email=email,
+            role=role,
             password_hash=generate_password_hash(password)
         )
         db.session.add(new_user)
         db.session.commit()
-        flash('Registration successful!', 'success')
+        flash('Success! Please log in.', 'success')
         return redirect(url_for('auth.login'))
     return render_template('register.html')
 
@@ -50,4 +52,4 @@ def logout():
 def magic_reset():
     db.drop_all()
     db.create_all()
-    return "Database Reset! Register a new account."
+    return "Database Cleaned! You can now register with Name, Email, and Role."
