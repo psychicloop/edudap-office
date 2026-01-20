@@ -5,10 +5,11 @@ from .models import Todo, TodoStatus, Priority
 
 todos_bp = Blueprint('todos', __name__, url_prefix='/todos')
 
+# FIX: Renamed function from 'index' to 'my_todos' to match your HTML menu
 @todos_bp.route('/')
 @login_required
-def index():
-    # FIX: Uses 'user_id' to match the database model
+def my_todos():
+    # Fetch user's todos
     my_todos = Todo.query.filter_by(user_id=current_user.id).order_by(Todo.created_at.desc()).all()
     return render_template('todos.html', todos=my_todos)
 
@@ -19,7 +20,6 @@ def add():
     priority = request.form.get('priority')
     
     if title:
-        # FIX: Uses 'user_id'
         new_todo = Todo(
             title=title,
             priority=priority,
@@ -30,7 +30,8 @@ def add():
         db.session.commit()
         flash('Task added!', 'success')
         
-    return redirect(url_for('todos.index'))
+    # FIX: Redirects back to 'my_todos'
+    return redirect(url_for('todos.my_todos'))
 
 @todos_bp.route('/complete/<int:id>')
 @login_required
@@ -39,7 +40,8 @@ def complete(id):
     if todo.user_id == current_user.id:
         todo.status = TodoStatus.COMPLETED
         db.session.commit()
-    return redirect(url_for('todos.index'))
+    # FIX: Redirects back to 'my_todos'
+    return redirect(url_for('todos.my_todos'))
 
 @todos_bp.route('/delete/<int:id>')
 @login_required
@@ -48,4 +50,5 @@ def delete(id):
     if todo.user_id == current_user.id:
         db.session.delete(todo)
         db.session.commit()
-    return redirect(url_for('todos.index'))
+    # FIX: Redirects back to 'my_todos'
+    return redirect(url_for('todos.my_todos'))
