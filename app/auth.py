@@ -1,12 +1,17 @@
 from flask import Blueprint, render_template, redirect, url_for, request, flash
 from werkzeug.security import generate_password_hash, check_password_hash
-from flask_login import login_user, logout_user, login_required
+from flask_login import login_user, logout_user, login_required, current_user
 from .models import User, db
 
 auth_bp = Blueprint('auth', __name__, url_prefix='/auth')
 
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login():
+    # FIX: If user is already logged in, kick them to Dashboard immediately.
+    # This prevents the "Header on Login Page" glitch.
+    if current_user.is_authenticated:
+        return redirect(url_for('admin.dashboard'))
+
     if request.method == 'POST':
         u = request.form.get('username')
         p = request.form.get('password')
@@ -19,13 +24,16 @@ def login():
 
 @auth_bp.route('/register', methods=['GET', 'POST'])
 def register():
+    # Same fix here: Don't let logged-in users register new accounts
+    if current_user.is_authenticated:
+        return redirect(url_for('admin.dashboard'))
+
     if request.method == 'POST':
         u = request.form.get('username')
         e = request.form.get('email')
         p = request.form.get('password')
         r = request.form.get('role', 'Employee')
 
-        # Check for duplicates so the database doesn't crash
         if User.query.filter_by(username=u).first():
             flash('This Name is already taken. Choose another.', 'warning')
             return redirect(url_for('auth.register'))
