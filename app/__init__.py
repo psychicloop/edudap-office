@@ -1,13 +1,14 @@
 from flask import Flask, redirect, url_for, send_from_directory
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
+from sqlalchemy import text  # <--- IMPORT THIS
 import os
 
 # -------------------------
 # EXTENSIONS (GLOBAL SINGLETONS)
 # -------------------------
 db = SQLAlchemy()
-login_manager = LoginManager()   # keep at module level
+login_manager = LoginManager()   
 
 def create_app():
     app = Flask(__name__)
@@ -16,17 +17,12 @@ def create_app():
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
     # -------------------------
-    # FIX: CONFIGURE UPLOAD FOLDER
+    # CONFIGURE UPLOAD FOLDER
     # -------------------------
-    # This determines where the folder is relative to this file
     base_dir = os.path.abspath(os.path.dirname(__file__))
-    # We go up one level (..) to the root folder, then into 'uploads'
     upload_folder = os.path.join(base_dir, '..', 'uploads')
-    
-    # 1. Tell Flask where the folder is
     app.config['UPLOAD_FOLDER'] = upload_folder
     
-    # 2. Create the folder if it doesn't exist (Critical for Render)
     if not os.path.exists(upload_folder):
         os.makedirs(upload_folder)
 
@@ -72,7 +68,6 @@ def create_app():
     # -------------------------
     @app.route("/uploads/<path:filename>")
     def uploaded_files(filename):
-        # We use the same config we defined above to ensure consistency
         return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
     # -------------------------
@@ -83,9 +78,32 @@ def create_app():
         return redirect(url_for("auth.login"))
 
     # -------------------------
-    # CREATE TABLES
+    # CREATE TABLES & FIX SEARCH TABLE
     # -------------------------
     with app.app_context():
+        # 1. Create standard tables
         db.create_all()
+        
+        # 2. MANUALLY Create the missing Search Table (FTS)
+        # We wrap this in a try-except block to prevent crashes if it already exists or errors out
+        try:
+            db.session.execute(text("""
+                CREATE VIRTUAL TABLE IF NOT EXISTS quotation_fts USING fts5(
+                    parsed_text, 
+                    brand, 
+                    make, 
+                    cas_no, 
+                    product_name, 
+                    instrument, 
+                    chemical, 
+                    reagent, 
+                    kit, 
+                    media
+                );
+            """))
+            db.session.commit()
+            print("Search table 'quotation_fts' checked/created successfully.")
+        except Exception as e:
+            print(f"Warning: Could not create FTS table. Search might fail. Error: {e}")
 
     return app
