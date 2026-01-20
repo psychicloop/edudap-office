@@ -21,6 +21,7 @@
             color: #333;
         }
 
+        /* --- NAVIGATION BAR --- */
         .navbar { 
             background-color: white; 
             border-bottom: 3px solid var(--edudap-teal); 
@@ -67,10 +68,34 @@
         .btn-logout:hover { background-color: #d32f2f; color: white; border-color: #d32f2f; }
         .btn-primary { background-color: var(--edudap-blue); border-color: var(--edudap-blue); }
         .btn-primary:hover { background-color: #083b7c; }
+
+        /* LOGIN SPECIFIC HEADER TEXT */
+        .login-header-text {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--edudap-blue);
+            margin-left: 1rem;
+            border-left: 2px solid #ddd;
+            padding-left: 1rem;
+            line-height: 1;
+        }
     </style>
 </head>
 <body>
     
+    {% if request.endpoint == 'auth.login' %}
+    <nav class="navbar navbar-expand-lg sticky-top shadow-sm">
+        <div class="container">
+            <div class="d-flex align-items-center">
+                <a class="navbar-brand p-0" href="#">
+                    <img src="{{ url_for('static', filename='logo.png') }}" alt="EduDAP">
+                </a>
+                <span class="login-header-text">EduDAP CRM</span>
+            </div>
+        </div>
+    </nav>
+    {% endif %}
+
     {% if current_user.is_authenticated and request.endpoint != 'auth.login' %}
     <nav class="navbar navbar-expand-lg sticky-top shadow-sm">
         <div class="container">
