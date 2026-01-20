@@ -1,16 +1,54 @@
+{% extends "layout.html" %}
 
-{% extends 'base.html' %}
 {% block content %}
-<h3>Admin Dashboard</h3>
-<div class="row g-3">
-  <div class="col-md-3"><div class="card text-center"><div class="card-body"><div class="h5">Attendance Records</div><div class="display-6">{{ cards.attendance_today }}</div></div></div></div>
-  <div class="col-md-3"><div class="card text-center"><div class="card-body"><div class="h5">Pending Leaves</div><div class="display-6">{{ cards.pending_leaves }}</div></div></div></div>
-  <div class="col-md-3"><div class="card text-center"><div class="card-body"><div class="h5">Pending Expenses</div><div class="display-6">{{ cards.pending_expenses }}</div></div></div></div>
-  <div class="col-md-3"><div class="card text-center"><div class="card-body"><div class="h5">Open Tasks</div><div class="display-6">{{ cards.open_todos }}</div></div></div></div>
-</div>
-<div class="mt-4">
-  <a class="btn btn-outline-primary" href="{{ url_for('leave.manage') }}">Manage Leaves</a>
-  <a class="btn btn-outline-primary" href="{{ url_for('expenses.manage') }}">Manage Expenses</a>
-  <a class="btn btn-outline-primary" href="{{ url_for('location.latest') }}">Latest Locations</a>
+<div class="container-fluid">
+    <div class="mb-4">
+        <h2 style="color: var(--brand-blue);">Welcome, {{ current_user.username }}!</h2>
+        <p class="text-muted">Here is an overview of your office.</p>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem;">
+        
+        <div class="card interactive" onclick="window.location.href='{{ url_for('quotations.index') }}'" style="cursor: pointer;">
+            <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
+                <div style="background: #e0f2fe; padding: 10px; border-radius: 8px; color: var(--brand-blue);">
+                    <i class="bi bi-file-earmark-text fs-4"></i>
+                </div>
+                <h3 style="margin: 0; font-size: 1.1rem; color: var(--brand-blue);">Quotations</h3>
+            </div>
+            <p class="text-muted" style="margin: 0;">Manage and search all quotations.</p>
+        </div>
+
+        <div class="card interactive" onclick="window.location.href='{{ url_for('expenses.my_expenses') }}'" style="cursor: pointer;">
+            <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
+                <div style="background: #dcfce7; padding: 10px; border-radius: 8px; color: var(--brand-green);">
+                    <i class="bi bi-cash-stack fs-4"></i>
+                </div>
+                <h3 style="margin: 0; font-size: 1.1rem; color: var(--brand-green);">Expenses</h3>
+            </div>
+            <p class="text-muted" style="margin: 0;">Track spending and reimbursements.</p>
+        </div>
+
+        <div class="card interactive" onclick="window.location.href='{{ url_for('leave.leave_calendar') }}'" style="cursor: pointer;">
+            <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
+                <div style="background: #fef3c7; padding: 10px; border-radius: 8px; color: #b45309;">
+                    <i class="bi bi-calendar-check fs-4"></i>
+                </div>
+                <h3 style="margin: 0; font-size: 1.1rem; color: #b45309;">Leave Calendar</h3>
+            </div>
+            <p class="text-muted" style="margin: 0;">View team availability.</p>
+        </div>
+
+        <div class="card interactive" onclick="window.location.href='{{ url_for('attendance.check_in') }}'" style="cursor: pointer;">
+            <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
+                <div style="background: #f3e8ff; padding: 10px; border-radius: 8px; color: #7e22ce;">
+                    <i class="bi bi-clock-history fs-4"></i>
+                </div>
+                <h3 style="margin: 0; font-size: 1.1rem; color: #7e22ce;">Attendance</h3>
+            </div>
+            <p class="text-muted" style="margin: 0;">Check in/out daily.</p>
+        </div>
+
+    </div>
 </div>
 {% endblock %}
