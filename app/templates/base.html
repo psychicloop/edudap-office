@@ -10,9 +10,7 @@
 <body class="bg-light">
     <nav class="navbar navbar-expand-lg navbar-white bg-white shadow-sm mb-4">
         <div class="container">
-            <a class="navbar-brand fw-bold text-primary" href="{{ url_for('admin.dashboard') }}">
-                EduDAP Office
-            </a>
+            <a class="navbar-brand fw-bold text-primary" href="{{ url_for('admin.dashboard') }}">EduDAP Office</a>
             <div class="ms-auto">
                 {% if current_user.is_authenticated %}
                     <span class="me-3 small">{{ current_user.username }}</span>
