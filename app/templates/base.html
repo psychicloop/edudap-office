@@ -21,14 +21,13 @@
             color: #333;
         }
 
-        /* --- NAVIGATION BAR --- */
-        /* Only visible when logged in due to logic below */
         .navbar { 
             background-color: white; 
             border-bottom: 3px solid var(--edudap-teal); 
             padding: 0.8rem 0; 
         }
         
+        /* LOGO STYLING */
         .navbar-brand img {
             height: 45px;
             width: auto;
@@ -36,7 +35,6 @@
             display: block;
         }
         
-        /* NAVIGATION LINKS */
         .nav-link { 
             color: #555; 
             font-weight: 600; 
@@ -51,7 +49,7 @@
             background-color: rgba(10, 74, 155, 0.05); 
         }
 
-        /* --- USER PROFILE SECTION --- */
+        /* USER PROFILE */
         .user-profile-section {
             border-left: 1px solid #e0e0e0;
             padding-left: 1.5rem;
@@ -59,56 +57,21 @@
             align-items: center;
             gap: 1rem;
         }
+        .user-info { text-align: right; line-height: 1.2; }
+        .user-welcome { font-size: 0.75rem; text-transform: uppercase; color: #888; font-weight: 600; margin-bottom: 2px; }
+        .user-name { font-size: 0.95rem; font-weight: 700; color: var(--edudap-blue); }
 
-        .user-info {
-            text-align: right;
-            line-height: 1.2;
-        }
-
-        .user-welcome {
-            font-size: 0.75rem;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            color: #888;
-            font-weight: 600;
-            margin-bottom: 2px;
-        }
-
-        .user-name {
-            font-size: 0.95rem;
-            font-weight: 700;
-            color: var(--edudap-blue);
-        }
-
-        /* LOGOUT BUTTON */
         .btn-logout {
-            border: 1px solid #ffcdd2;
-            color: #d32f2f;
-            font-weight: 600;
-            font-size: 0.85rem;
-            padding: 0.4rem 1rem;
-            border-radius: 6px;
-            transition: all 0.2s;
+            border: 1px solid #ffcdd2; color: #d32f2f; font-weight: 600; font-size: 0.85rem; padding: 0.4rem 1rem; border-radius: 6px; transition: all 0.2s;
         }
-        .btn-logout:hover {
-            background-color: #d32f2f;
-            color: white;
-            border-color: #d32f2f;
-        }
-
-        /* --- BUTTONS --- */
-        .btn-primary {
-            background-color: var(--edudap-blue);
-            border-color: var(--edudap-blue);
-        }
-        .btn-primary:hover {
-            background-color: #083b7c; 
-        }
+        .btn-logout:hover { background-color: #d32f2f; color: white; border-color: #d32f2f; }
+        .btn-primary { background-color: var(--edudap-blue); border-color: var(--edudap-blue); }
+        .btn-primary:hover { background-color: #083b7c; }
     </style>
 </head>
 <body>
     
-    {% if current_user.is_authenticated %}
+    {% if current_user.is_authenticated and request.endpoint != 'auth.login' %}
     <nav class="navbar navbar-expand-lg sticky-top shadow-sm">
         <div class="container">
             <a class="navbar-brand" href="/">
