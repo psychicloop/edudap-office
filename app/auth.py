@@ -20,11 +20,20 @@ def login():
 @auth_bp.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
+        u = request.form.get('username')
+        e = request.form.get('email')
+        p = request.form.get('password')
+        r = request.form.get('role', 'Employee')
+
+        if User.query.filter_by(username=u).first():
+            flash('Username taken', 'warning')
+            return redirect(url_for('auth.register'))
+
         new_user = User(
-            username=request.form.get('username'),
-            email=request.form.get('email'),
-            role=request.form.get('role', 'Employee'),
-            password_hash=generate_password_hash(request.form.get('password'))
+            username=u, 
+            email=e, 
+            role=r, 
+            password_hash=generate_password_hash(p)
         )
         db.session.add(new_user)
         db.session.commit()
@@ -35,4 +44,4 @@ def register():
 def magic_reset():
     db.drop_all()
     db.create_all()
-    return "Database Recreated! Register now."
+    return "Database Recreated! Go to /auth/register now."
