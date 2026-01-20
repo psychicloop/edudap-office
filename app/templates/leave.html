@@ -1,67 +1,53 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
-from flask_login import login_required, current_user
-from datetime import datetime
-from . import db
-from .models import HolidayRequest, HolidayStatus
+{% extends "base.html" %}
 
-leave_bp = Blueprint('leave', __name__, url_prefix='/leave')
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-4">
+            <div class="card p-4 shadow-sm border-0 mb-4">
+                <h5 class="text-primary mb-3">Request Leave</h5>
+                <form action="{{ url_for('leave.request_leave') }}" method="POST">
+                    <div class="mb-3">
+                        <label class="form-label small">Start Date</label>
+                        <input type="date" name="start_date" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small">End Date</label>
+                        <input type="date" name="end_date" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small">Leave Type</label>
+                        <select name="leave_type" class="form-select">
+                            <option>Sick Leave</option>
+                            <option>Casual Leave</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small">Reason</label>
+                        <textarea name="reason" class="form-control" rows="2" required></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">Submit</button>
+                </form>
+            </div>
+        </div>
 
-@leave_bp.route('/')
-@login_required
-def index():
-    # Show list of my leaves
-    my_leaves = HolidayRequest.query.filter_by(user_id=current_user.id).order_by(HolidayRequest.start_date.desc()).all()
-    return render_template('leave.html', leaves=my_leaves)
+        <div class="col-md-8">
+            <div class="card p-3 shadow-sm border-0 mb-4">
+                <h5 class="mb-3">Leave Calendar</h5>
+                <div id="calendar"></div>
+            </div>
+        </div>
+    </div>
+</div>
 
-@leave_bp.route('/calendar')
-@login_required
-def leave_calendar():
-    return render_template('leave_calendar.html')
-
-@leave_bp.route('/events')
-@login_required
-def get_events():
-    # Return events for the calendar (JSON)
-    leaves = HolidayRequest.query.all()
-    events = []
-    for l in leaves:
-        color = '#ffc107' # Yellow for Pending
-        if l.status == HolidayStatus.APPROVED:
-            color = '#28a745' # Green
-        elif l.status == HolidayStatus.REJECTED:
-            color = '#dc3545' # Red
-
-        events.append({
-            'title': f"{l.user.username} ({l.status})",
-            'start': l.start_date.isoformat(),
-            'end': l.end_date.isoformat(),
-            'color': color
-        })
-    return jsonify(events)
-
-@leave_bp.route('/request', methods=['POST'])
-@login_required
-def request_leave():
-    start_date = request.form.get('start_date')
-    end_date = request.form.get('end_date')
-    leave_type = request.form.get('leave_type')
-    reason = request.form.get('reason')
-
-    if start_date and end_date:
-        # FIX: Combine leave_type and reason into one string so it fits in the DB
-        full_reason = f"[{leave_type}] {reason}"
-
-        new_leave = HolidayRequest(
-            user_id=current_user.id,
-            start_date=datetime.strptime(start_date, '%Y-%m-%d'),
-            end_date=datetime.strptime(end_date, '%Y-%m-%d'),
-            reason=full_reason, # Saved here!
-            status=HolidayStatus.PENDING
-        )
-        db.session.add(new_leave)
-        db.session.commit()
-        flash('Leave requested successfully!', 'success')
-        return redirect(url_for('leave.index'))
-        
-    flash('Invalid dates', 'danger')
-    return redirect(url_for('leave.index'))
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        var calendarEl = document.getElementById('calendar');
+        var calendar = new FullCalendar.Calendar(calendarEl, {
+            initialView: 'dayGridMonth',
+            events: '{{ url_for("leave.get_events") }}'
+        });
+        calendar.render();
+    });
+</script>
+{% endblock %}
