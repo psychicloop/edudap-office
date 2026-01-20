@@ -1,18 +1,41 @@
-
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import login_required, current_user
-from datetime import datetime, timedelta
-from .models import HolidayRequest, HolidayStatus, User, Role
+from datetime import datetime
 from . import db
+from .models import HolidayRequest, HolidayStatus
 
-leave_bp = Blueprint('leave', __name__)
+leave_bp = Blueprint('leave', __name__, url_prefix='/leave')
 
+# --- MAIN LEAVE PAGE (The Dashboard looks for 'index') ---
 @leave_bp.route('/')
 @login_required
-def my_leave():
-    myreq = HolidayRequest.query.filter_by(user_id=current_user.id).order_by(HolidayRequest.id.desc()).all()
-    return render_template('leave.html', myreq=myreq)
+def index():
+    # Show list of my leaves
+    my_leaves = HolidayRequest.query.filter_by(user_id=current_user.id).order_by(HolidayRequest.start_date.desc()).all()
+    return render_template('leave.html', leaves=my_leaves)
 
+# --- CALENDAR EVENTS DATA ---
+@leave_bp.route('/events')
+@login_required
+def get_events():
+    leaves = HolidayRequest.query.all()
+    events = []
+    for l in leaves:
+        color = '#ffc107' # Yellow
+        if l.status == HolidayStatus.APPROVED:
+            color = '#28a745' # Green
+        elif l.status == HolidayStatus.REJECTED:
+            color = '#dc3545' # Red
+        
+        events.append({
+            'title': f"{l.user.username} ({l.status})",
+            'start': l.start_date.isoformat(),
+            'end': l.end_date.isoformat(),
+            'color': color
+        })
+    return jsonify(events)
+
+# --- SUBMIT LEAVE REQUEST ---
 @leave_bp.route('/request', methods=['POST'])
 @login_required
 def request_leave():
@@ -20,76 +43,22 @@ def request_leave():
     end_date = request.form.get('end_date')
     leave_type = request.form.get('leave_type')
     reason = request.form.get('reason')
-    r = HolidayRequest(user_id=current_user.id, start_date=datetime.fromisoformat(start_date).date(), end_date=datetime.fromisoformat(end_date).date(), leave_type=leave_type, reason=reason)
-    db.session.add(r)
-    db.session.commit()
-    flash('Leave requested','success')
-    return redirect(url_for('leave.my_leave'))
 
-@leave_bp.route('/manage')
-@login_required
-def manage():
-    if current_user.role != Role.ADMIN:
-        flash('Admins only','danger')
-        return redirect(url_for('leave.my_leave'))
-    reqs = HolidayRequest.query.order_by(HolidayRequest.id.desc()).all()
-    return render_template('leave_manage.html', reqs=reqs)
-
-@leave_bp.route('/<int:req_id>/approve', methods=['POST'])
-@login_required
-def approve(req_id):
-    if current_user.role != Role.ADMIN:
-        flash('Admins only','danger')
-        return redirect(url_for('leave.my_leave'))
-    r = HolidayRequest.query.get_or_404(req_id)
-    r.status = HolidayStatus.APPROVED.value
-    r.decided_by = current_user.id
-    r.decided_at = datetime.utcnow()
-    db.session.commit()
-    flash('Approved','success')
-    return redirect(url_for('leave.manage'))
-
-@leave_bp.route('/<int:req_id>/reject', methods=['POST'])
-@login_required
-def reject(req_id):
-    if current_user.role != Role.ADMIN:
-        flash('Admins only','danger')
-        return redirect(url_for('leave.my_leave'))
-    r = HolidayRequest.query.get_or_404(req_id)
-    r.status = HolidayStatus.REJECTED.value
-    r.decided_by = current_user.id
-    r.decided_at = datetime.utcnow()
-    db.session.commit()
-    flash('Rejected','warning')
-    return redirect(url_for('leave.manage'))
-
-@leave_bp.route('/calendar')
-@login_required
-def leave_calendar():
-    return render_template('leave_calendar.html')
-
-@leave_bp.route('/events')
-@login_required
-def leave_events():
-    q = HolidayRequest.query
-    if current_user.role != Role.ADMIN:
-        q = q.filter(HolidayRequest.user_id==current_user.id)
-    recs = q.all()
-
-    events = []
-    for r in recs:
-        u = User.query.get(r.user_id)
-        name = u.name if u else f"User {r.user_id}"
-        title = f"{name}: {r.leave_type or 'Leave'}"
-        end_exclusive = r.end_date + timedelta(days=1) if r.end_date else None
-        color = {'PENDING':'#F0AD4E','APPROVED':'#5CB85C','REJECTED':'#D9534F'}.get(r.status, '#6DB9D6')
-        events.append({
-            'id': r.id,
-            'title': title,
-            'start': r.start_date.isoformat() if r.start_date else None,
-            'end': end_exclusive.isoformat() if end_exclusive else None,
-            'allDay': True,
-            'color': color,
-            'extendedProps': {'status': r.status, 'reason': r.reason or ''}
-        })
-    return jsonify(events)
+    if start_date and end_date:
+        # Combine type and reason for the database
+        full_reason = f"[{leave_type}] {reason}"
+        
+        new_leave = HolidayRequest(
+            user_id=current_user.id,
+            start_date=datetime.strptime(start_date, '%Y-%m-%d'),
+            end_date=datetime.strptime(end_date, '%Y-%m-%d'),
+            reason=full_reason,
+            status=HolidayStatus.PENDING
+        )
+        db.session.add(new_leave)
+        db.session.commit()
+        flash('Leave requested successfully!', 'success')
+    else:
+        flash('Invalid dates', 'danger')
+        
+    return redirect(url_for('leave.index'))
