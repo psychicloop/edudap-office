@@ -8,36 +8,31 @@ auth_bp = Blueprint('auth', __name__, url_prefix='/auth')
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        username = request.form.get('username')
-        password = request.form.get('password')
-        user = User.query.filter_by(username=username).first()
-        if user and check_password_hash(user.password_hash, password):
+        # These names MUST match the 'name' attribute in the HTML form
+        u = request.form.get('username')
+        p = request.form.get('password')
+        user = User.query.filter_by(username=u).first()
+        if user and check_password_hash(user.password_hash, p):
             login_user(user)
             return redirect(url_for('admin.dashboard'))
-        flash('Invalid Credentials', 'danger')
+        flash('Invalid username or password', 'danger')
     return render_template('login.html')
 
 @auth_bp.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
-        username = request.form.get('username')
-        email = request.form.get('email')
-        password = request.form.get('password')
-        role = request.form.get('role', 'Employee')
+        u = request.form.get('username')
+        e = request.form.get('email')
+        p = request.form.get('password')
+        r = request.form.get('role', 'Employee')
 
-        if User.query.filter_by(username=username).first():
-            flash('Username already exists', 'warning')
+        if User.query.filter_by(username=u).first():
+            flash('Username taken', 'warning')
             return redirect(url_for('auth.register'))
 
-        new_user = User(
-            username=username, 
-            email=email, 
-            role=role, 
-            password_hash=generate_password_hash(password)
-        )
+        new_user = User(username=u, email=e, role=r, password_hash=generate_password_hash(p))
         db.session.add(new_user)
         db.session.commit()
-        flash('Success! Please log in.', 'success')
         return redirect(url_for('auth.login'))
     return render_template('register.html')
 
@@ -45,7 +40,7 @@ def register():
 def magic_reset():
     db.drop_all()
     db.create_all()
-    return "DATABASE CLEANED. Go to /auth/register now."
+    return "Database Recreated! Go to /auth/register"
 
 @auth_bp.route('/logout')
 @login_required
