@@ -7,35 +7,87 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <style>
-        /* Corporate Theme based on Logo colors (Blue/White) */
-        :root { --primary-blue: #0d6efd; --light-bg: #f4f7f6; }
-        body { background-color: var(--light-bg); font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        .navbar { background-color: white; box-shadow: 0 2px 4px rgba(0,0,0,0.05); padding-bottom: 0; }
-        .nav-link { font-size: 16px; font-weight: 500; color: #555; padding: 1rem !important; }
-        .nav-link.active { color: var(--primary-blue); border-bottom: 3px solid var(--primary-blue); }
-        .nav-link:hover { color: var(--primary-blue); }
+        /* --- BRAND IDENTITY FROM LOGO --- */
+        :root {
+            --edudap-blue: #0a4a9b;   /* Deep Blue from 'DAP' */
+            --edudap-green: #4d8b55;  /* Green from 'Edu' */
+            --edudap-teal: #6bbcb5;   /* Light Teal from Icon */
+            --bg-light: #f8fcfb;      /* Very subtle tint */
+        }
+
+        body { 
+            background-color: var(--bg-light); 
+            font-family: 'Segoe UI', 'Roboto', 'Helvetica Neue', sans-serif;
+            color: #333;
+        }
+
+        /* Navbar Styling */
+        .navbar { 
+            background-color: white; 
+            border-bottom: 3px solid var(--edudap-teal); 
+            padding: 0;
+        }
+        .navbar-brand { 
+            color: var(--edudap-blue) !important; 
+            font-weight: 800; 
+            font-size: 1.5rem;
+            letter-spacing: -0.5px;
+        }
+        
+        /* Navigation Tabs */
+        .nav-link { 
+            color: #555; 
+            font-weight: 600; 
+            padding: 1.2rem 1.5rem !important; 
+            transition: all 0.2s;
+        }
+        .nav-link:hover, .nav-link.active { 
+            color: var(--edudap-blue); 
+            background-color: rgba(107, 188, 181, 0.1); /* Subtle Teal hover */
+        }
+
+        /* Buttons */
+        .btn-primary {
+            background-color: var(--edudap-blue);
+            border-color: var(--edudap-blue);
+        }
+        .btn-primary:hover {
+            background-color: #083b7c; /* Darker shade of brand blue */
+        }
+        .btn-outline-danger {
+            border-color: #dc3545;
+            color: #dc3545;
+        }
     </style>
 </head>
 <body>
-    <nav class="navbar navbar-expand-lg sticky-top">
+    <nav class="navbar navbar-expand-lg sticky-top shadow-sm">
         <div class="container">
-            <a class="navbar-brand fw-bold text-primary fs-4" href="{{ url_for('admin.dashboard') }}">EduDAP Office</a>
+            <a class="navbar-brand" href="{{ url_for('admin.dashboard') }}">
+                <i class="bi bi-heptagon-half text-success me-2"></i>EduDAP
+            </a>
             
             {% if current_user.is_authenticated %}
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav mx-auto">
                     <li class="nav-item"><a class="nav-link" href="#">Attendance</a></li>
-                    <li class="nav-item"><a class="nav-link" href="#">Leave Expense</a></li>
+                    
+                    <li class="nav-item"><a class="nav-link" href="#">Leave</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#">Expenses</a></li>
+                    
                     <li class="nav-item"><a class="nav-link" href="#">To-do List</a></li>
                     
                     {% if current_user.role == 'Admin' %}
-                    <li class="nav-item"><a class="nav-link text-danger fw-bold" href="#">Admin Panel</a></li>
+                    <li class="nav-item"><a class="nav-link text-danger" href="#">Admin Panel</a></li>
                     {% endif %}
                 </ul>
                 
-                <div class="d-flex align-items-center">
-                    <span class="me-3 fw-bold text-dark">Hello, {{ current_user.username }}</span>
-                    <a href="{{ url_for('auth.logout') }}" class="btn btn-outline-danger btn-sm">Logout</a>
+                <div class="d-flex align-items-center border-start ps-4">
+                    <div class="me-3 lh-1 text-end">
+                        <div class="fw-bold small text-uppercase text-muted">Welcome</div>
+                        <div class="fw-bold" style="color: var(--edudap-blue);">{{ current_user.username }}</div>
+                    </div>
+                    <a href="{{ url_for('auth.logout') }}" class="btn btn-outline-danger btn-sm px-3">Logout</a>
                 </div>
             </div>
             {% endif %}
@@ -46,7 +98,7 @@
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
                 {% for category, message in messages %}
-                    <div class="alert alert-{{ category }} alert-dismissible fade show">
+                    <div class="alert alert-{{ category }} alert-dismissible fade show shadow-sm border-0">
                         {{ message }}
                         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                     </div>
