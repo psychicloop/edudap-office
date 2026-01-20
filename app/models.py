@@ -2,7 +2,7 @@ from . import db
 from flask_login import UserMixin
 from datetime import datetime
 
-# --- ALL ENUMS ---
+# --- ALL ENUMS (The Categories) ---
 class AttendanceType:
     PRESENT, ABSENT, HALF_DAY = 'Present', 'Absent', 'Half Day'
 
@@ -15,12 +15,12 @@ class ExpenseStatus:
 class TodoStatus:
     PENDING, COMPLETED = 'Pending', 'Completed'
 
-# --- THE ROLE MODEL (Missing piece causing current crash) ---
+# --- THE MODELS (The Cabinets) ---
+
 class Role(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(50), unique=True, nullable=False)
 
-# --- THE USER MODEL ---
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(100), unique=True, nullable=False)
@@ -28,7 +28,6 @@ class User(UserMixin, db.Model):
     role = db.Column(db.String(50), default='Employee')
     password_hash = db.Column(db.String(200), nullable=False)
 
-# --- ALL SUPPORTING MODELS ---
 class Quotation(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     filename = db.Column(db.String(200), nullable=False)
@@ -62,10 +61,10 @@ class HolidayRequest(db.Model):
 
 class LocationPing(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     latitude = db.Column(db.Float, nullable=False)
     longitude = db.Column(db.Float, nullable=False)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     user = db.relationship('User', backref='pings')
 
 class Todo(db.Model):
