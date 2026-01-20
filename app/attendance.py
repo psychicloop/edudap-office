@@ -6,13 +6,14 @@ from .models import Attendance, AttendanceType
 
 attendance_bp = Blueprint('attendance', __name__, url_prefix='/attendance')
 
+# FIX: Renamed function from 'check_in' to 'my_attendance' to match your HTML menu
 @attendance_bp.route('/')
 @login_required
-def check_in():
-    # FIX: We use 'date' to sort, because 'timestamp' does not exist in your database
+def my_attendance():
+    # Fetch records
     recs = Attendance.query.filter_by(user_id=current_user.id).order_by(Attendance.date.desc()).limit(30).all()
     
-    # Check if checked in today
+    # Check status for today
     today_rec = Attendance.query.filter_by(user_id=current_user.id, date=date.today()).first()
     checked_in = (today_rec is not None)
     checked_out = (today_rec.check_out_time is not None) if today_rec else False
@@ -40,4 +41,5 @@ def mark():
             db.session.commit()
             flash('Checked Out successfully!', 'success')
             
-    return redirect(url_for('attendance.check_in'))
+    # Redirect back to the main attendance page
+    return redirect(url_for('attendance.my_attendance'))
