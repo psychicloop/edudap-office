@@ -2,34 +2,23 @@ from . import db
 from flask_login import UserMixin
 from datetime import datetime
 
-# --- ENUMS (The missing pieces) ---
-
+# --- ENUMS ---
 class AttendanceType:
-    PRESENT = 'Present'
-    ABSENT = 'Absent'
-    HALF_DAY = 'Half Day'
+    PRESENT, ABSENT, HALF_DAY = 'Present', 'Absent', 'Half Day'
 
 class HolidayStatus:
-    PENDING = 'Pending'
-    APPROVED = 'Approved'
-    REJECTED = 'Rejected'
+    PENDING, APPROVED, REJECTED = 'Pending', 'Approved', 'Rejected'
 
 class TodoStatus:
-    PENDING = 'Pending'
-    COMPLETED = 'Completed'
+    PENDING, COMPLETED = 'Pending', 'Completed'
 
 class Priority:
-    LOW = 'Low'
-    MEDIUM = 'Medium'
-    HIGH = 'High'
+    LOW, MEDIUM, HIGH = 'Low', 'Medium', 'High'
 
 class ExpenseStatus:
-    PENDING = 'Pending'
-    APPROVED = 'Approved'
-    REJECTED = 'Rejected'
+    PENDING, APPROVED, REJECTED = 'Pending', 'Approved', 'Rejected'
 
 # --- MODELS ---
-
 class Role(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(50), unique=True)
@@ -46,7 +35,7 @@ class Quotation(db.Model):
     filename = db.Column(db.String(200), nullable=False)
     uploaded_at = db.Column(db.DateTime, default=datetime.utcnow)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    uploader = db.relationship('User', backref='quotations')
+    user = db.relationship('User', backref='quotations')
 
 class Expense(db.Model):
     id = db.Column(db.Integer, primary_key=True)
