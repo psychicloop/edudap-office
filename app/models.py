@@ -23,6 +23,12 @@ class Priority:
     HIGH = 'High'
 
 # --- MODELS ---
+
+# FIX: Added Role class back so auth.py doesn't crash
+class Role(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(50), unique=True)
+
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(100), unique=True, nullable=False)
@@ -70,7 +76,6 @@ class Todo(db.Model):
     title = db.Column(db.String(200), nullable=False)
     status = db.Column(db.String(20), default=TodoStatus.PENDING)
     priority = db.Column(db.String(20), default=Priority.MEDIUM)
-    # ADDED THIS FIELD FOR DATES
     due_date = db.Column(db.DateTime, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     user = db.relationship('User', backref='todos')
