@@ -1,30 +1,30 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="row justify-content-center mt-5">
-    <div class="col-md-4">
-        <div class="card shadow p-4">
-            <h3 class="text-center mb-4">EduDAP Register</h3>
+    <div class="col-md-5">
+        <div class="card shadow border-0 p-4">
+            <h3 class="text-center mb-4 text-primary fw-bold">EduDAP Office Signup</h3>
             <form method="POST">
                 <div class="mb-3">
-                    <label>Full Name</label>
-                    <input type="text" name="username" class="form-control" placeholder="Enter full name" required>
+                    <label class="form-label">Full Name</label>
+                    <input type="text" name="username" class="form-control" placeholder="Enter name" required>
                 </div>
                 <div class="mb-3">
-                    <label>Email Address</label>
+                    <label class="form-label">Email Address</label>
                     <input type="email" name="email" class="form-control" placeholder="name@edudap.com" required>
                 </div>
                 <div class="mb-3">
-                    <label>Password</label>
+                    <label class="form-label">Password</label>
                     <input type="password" name="password" class="form-control" required>
                 </div>
                 <div class="mb-4">
-                    <label>Register As</label>
+                    <label class="form-label">Register As</label>
                     <select name="role" class="form-select">
-                        <option value="Employee">Employee Only</option>
-                        <option value="Admin">Admin</option>
+                        <option value="Admin">Admin (Full Access)</option>
+                        <option value="Employee">Employee (Staff Access)</option>
                     </select>
                 </div>
-                <button type="submit" class="btn btn-success w-100">Create Account</button>
+                <button type="submit" class="btn btn-success w-100 py-2">Create Account</button>
             </form>
         </div>
     </div>
