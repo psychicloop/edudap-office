@@ -47,7 +47,11 @@ class Expense(db.Model):
 class Attendance(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     date = db.Column(db.Date, nullable=False)
-    # Simple status for now, avoiding complex time fields until designed
+    
+    # TIMESTAMP FIELDS
+    in_time = db.Column(db.DateTime, nullable=True)
+    out_time = db.Column(db.DateTime, nullable=True)
+    
     status = db.Column(db.String(20), default=AttendanceType.ABSENT)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     user = db.relationship('User', backref='attendance_records')
