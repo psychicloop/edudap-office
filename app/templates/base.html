@@ -22,18 +22,18 @@
         }
 
         /* --- NAVIGATION BAR --- */
+        /* Only visible when logged in due to logic below */
         .navbar { 
             background-color: white; 
             border-bottom: 3px solid var(--edudap-teal); 
-            padding: 0.8rem 0; /* More breathing room */
+            padding: 0.8rem 0; 
         }
         
-        /* LOGO STYLING (Fix for Broken Image) */
         .navbar-brand img {
-            height: 45px;     /* Fixed height for consistency */
-            width: auto;      /* Maintain aspect ratio */
+            height: 45px;
+            width: auto;
             object-fit: contain;
-            display: block;   /* Removes unexpected bottom space */
+            display: block;
         }
         
         /* NAVIGATION LINKS */
@@ -48,10 +48,10 @@
         }
         .nav-link:hover, .nav-link.active { 
             color: var(--edudap-blue); 
-            background-color: rgba(10, 74, 155, 0.05); /* Very subtle blue bg on hover */
+            background-color: rgba(10, 74, 155, 0.05); 
         }
 
-        /* --- USER PROFILE SECTION (New Design) --- */
+        /* --- USER PROFILE SECTION --- */
         .user-profile-section {
             border-left: 1px solid #e0e0e0;
             padding-left: 1.5rem;
@@ -107,13 +107,14 @@
     </style>
 </head>
 <body>
+    
+    {% if current_user.is_authenticated %}
     <nav class="navbar navbar-expand-lg sticky-top shadow-sm">
         <div class="container">
             <a class="navbar-brand" href="/">
                 <img src="{{ url_for('static', filename='logo.png') }}" alt="EduDAP">
             </a>
             
-            {% if current_user.is_authenticated %}
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
             </button>
@@ -121,10 +122,8 @@
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav mx-auto align-items-center">
                     <li class="nav-item"><a class="nav-link" href="javascript:void(0);">Attendance</a></li>
-                    
                     <li class="nav-item"><a class="nav-link" href="javascript:void(0);">Leave</a></li>
                     <li class="nav-item"><a class="nav-link" href="javascript:void(0);">Expenses</a></li>
-                    
                     <li class="nav-item"><a class="nav-link" href="javascript:void(0);">To-do List</a></li>
                     
                     {% if current_user.role == 'Admin' %}
@@ -142,9 +141,7 @@
                             {% endif %}
                         </div>
                     </div>
-                    
                     <i class="bi bi-person-circle text-secondary" style="font-size: 2rem; opacity: 0.5;"></i>
-                    
                     <a href="{{ url_for('auth.logout') }}" class="btn btn-logout ms-2">Logout</a>
                 </div>
 
@@ -155,9 +152,9 @@
                     </div>
                 </div>
             </div>
-            {% endif %}
         </div>
     </nav>
+    {% endif %}
 
     <div class="container py-4">
         {% with messages = get_flashed_messages(with_categories=true) %}
