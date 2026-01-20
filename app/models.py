@@ -2,7 +2,7 @@ from . import db
 from flask_login import UserMixin
 from datetime import datetime
 
-# --- ALL ENUMS (The Categories) ---
+# --- ENUMS ---
 class AttendanceType:
     PRESENT, ABSENT, HALF_DAY = 'Present', 'Absent', 'Half Day'
 
@@ -15,8 +15,7 @@ class ExpenseStatus:
 class TodoStatus:
     PENDING, COMPLETED = 'Pending', 'Completed'
 
-# --- THE MODELS (The Cabinets) ---
-
+# --- MODELS ---
 class Role(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(50), unique=True, nullable=False)
@@ -31,6 +30,11 @@ class User(UserMixin, db.Model):
 class Quotation(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     filename = db.Column(db.String(200), nullable=False)
+    
+    # New Fields for "Smart Search"
+    client_name = db.Column(db.String(100), nullable=True) # Stores "To: Name"
+    product_details = db.Column(db.String(500), nullable=True) # Stores Make/Cat No
+    
     uploaded_at = db.Column(db.DateTime, default=datetime.utcnow)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     user = db.relationship('User', backref='quotations')
