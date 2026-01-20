@@ -23,7 +23,10 @@
                 <span class="badge bg-light text-secondary border fw-normal">Plasticware</span>
                 <span class="badge bg-light text-secondary border fw-normal">Glassware</span>
             </div>
-            <a href="#" class="ms-auto small text-decoration-none" style="color: var(--edudap-teal);">Clear History</a>
+            
+            <a href="{{ url_for('admin.upload_file') }}" class="btn btn-sm btn-outline-primary ms-auto" style="border-color: var(--edudap-blue); color: var(--edudap-blue);">
+                <i class="bi bi-cloud-upload me-1"></i> Upload New
+            </a>
         </div>
 
         <div class="alert text-center py-3 text-white shadow-sm mb-5" 
