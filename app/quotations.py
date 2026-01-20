@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app, send_from_directory
+from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 import os
@@ -11,14 +11,14 @@ quotations_bp = Blueprint('quotations', __name__)
 @quotations_bp.route('/')
 @login_required
 def index():
-    # Get all quotations, newest first
-    quotes = Quotation.query.order_by(Quotation.upload_date.desc()).all()
+    # FIXED: Using 'uploaded_at' to match your database
+    quotes = Quotation.query.order_by(Quotation.uploaded_at.desc()).all()
     return render_template('quotations.html', quotations=quotes)
 
 @quotations_bp.route('/upload', methods=['POST'])
 @login_required
 def upload():
-    # 1. Check if file is there
+    # 1. Check if file is present
     if 'file' not in request.files:
         flash('No file part', 'danger')
         return redirect(url_for('quotations.index'))
@@ -31,18 +31,16 @@ def upload():
         return redirect(url_for('quotations.index'))
 
     if file:
-        # 3. Secure the filename (removes dangerous characters)
+        # 3. Secure the filename
         filename = secure_filename(file.filename)
-        
-        # 4. Save the file to the 'uploads' folder
         save_path = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
         file.save(save_path)
 
-        # 5. Save the info to the Database
+        # 4. Save to Database (FIXED: Using 'uploaded_at')
         new_quote = Quotation(
             filename=filename,
             filepath=filename,
-            upload_date=datetime.utcnow(),
+            uploaded_at=datetime.utcnow(),
             uploader=current_user
         )
         db.session.add(new_quote)
