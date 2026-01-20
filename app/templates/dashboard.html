@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="mb-4">
+        <h3 class="text-muted">Dashboard Overview</h3>
+        <p>Welcome, {{ current_user.username }}!</p>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem;">
+        
+        <div class="card p-3 shadow-sm" onclick="window.location.href='{{ url_for('quotations.index') }}'" style="cursor: pointer; border-left: 5px solid #0d6efd;">
+            <div class="d-flex align-items-center gap-3 mb-2">
+                <i class="bi bi-file-earmark-text fs-2 text-primary"></i>
+                <h4 class="m-0 text-dark">Quotations</h4>
+            </div>
+            <p class="text-muted m-0">Repository & Search</p>
+        </div>
+
+        <div class="card p-3 shadow-sm" onclick="window.location.href='{{ url_for('expenses.my_expenses') }}'" style="cursor: pointer; border-left: 5px solid #198754;">
+            <div class="d-flex align-items-center gap-3 mb-2">
+                <i class="bi bi-cash-stack fs-2 text-success"></i>
+                <h4 class="m-0 text-dark">Expenses</h4>
+            </div>
+            <p class="text-muted m-0">Claims & History</p>
+        </div>
+
+        <div class="card p-3 shadow-sm" onclick="window.location.href='{{ url_for('attendance.my_attendance') }}'" style="cursor: pointer; border-left: 5px solid #6610f2;">
+            <div class="d-flex align-items-center gap-3 mb-2">
+                <i class="bi bi-clock fs-2 text-indigo" style="color: #6610f2;"></i>
+                <h4 class="m-0 text-dark">Attendance</h4>
+            </div>
+            <p class="text-muted m-0">Daily Check-in</p>
+        </div>
+        
+        <div class="card p-3 shadow-sm" onclick="window.location.href='{{ url_for('leave.leave_calendar') }}'" style="cursor: pointer; border-left: 5px solid #fd7e14;">
+            <div class="d-flex align-items-center gap-3 mb-2">
+                <i class="bi bi-calendar-event fs-2" style="color: #fd7e14;"></i>
+                <h4 class="m-0 text-dark">Leave</h4>
+            </div>
+            <p class="text-muted m-0">Calendar & Requests</p>
+        </div>
+
+        <div class="card p-3 shadow-sm" onclick="window.location.href='{{ url_for('todos.my_todos') }}'" style="cursor: pointer; border-left: 5px solid #dc3545;">
+            <div class="d-flex align-items-center gap-3 mb-2">
+                <i class="bi bi-check-square fs-2 text-danger"></i>
+                <h4 class="m-0 text-dark">To-Dos</h4>
+            </div>
+            <p class="text-muted m-0">Tasks & Priorities</p>
+        </div>
+
+    </div>
+</div>
+{% endblock %}
