@@ -26,7 +26,7 @@ def upload():
 
     if file:
         filename = secure_filename(file.filename)
-        # We only save the filename to the database to match your model
+        # FIX: We only use 'filename' and 'user_id' to match models.py exactly
         new_quote = Quotation(
             filename=filename,
             user_id=current_user.id
@@ -34,7 +34,7 @@ def upload():
         db.session.add(new_quote)
         db.session.commit()
         
-        # Save file to disk
+        # Save physical file to static folder
         upload_path = os.path.join(current_app.root_path, 'static/uploads/quotations')
         if not os.path.exists(upload_path):
             os.makedirs(upload_path)
