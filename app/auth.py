@@ -8,18 +8,13 @@ auth_bp = Blueprint('auth', __name__, url_prefix='/auth')
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        # Labels here MUST match the 'name' attributes in login.html
         username = request.form.get('username')
         password = request.form.get('password')
-        
         user = User.query.filter_by(username=username).first()
-        
         if user and check_password_hash(user.password_hash, password):
             login_user(user)
-            # Redirect to the dashboard upon successful match
             return redirect(url_for('admin.dashboard'))
-        
-        flash('Invalid username or password.', 'danger')
+        flash('Invalid Credentials', 'danger')
     return render_template('login.html')
 
 @auth_bp.route('/register', methods=['GET', 'POST'])
@@ -30,23 +25,19 @@ def register():
         password = request.form.get('password')
         role = request.form.get('role', 'Employee')
 
-        if not username or not password:
-            flash('All fields are required.', 'danger')
-            return redirect(url_for('auth.register'))
-
         if User.query.filter_by(username=username).first():
-            flash('Username already exists.', 'warning')
+            flash('Username already exists', 'warning')
             return redirect(url_for('auth.register'))
 
         new_user = User(
-            username=username,
-            email=email,
-            role=role,
+            username=username, 
+            email=email, 
+            role=role, 
             password_hash=generate_password_hash(password)
         )
         db.session.add(new_user)
         db.session.commit()
-        flash('Account created! Please log in.', 'success')
+        flash('Success! Please log in.', 'success')
         return redirect(url_for('auth.login'))
     return render_template('register.html')
 
@@ -54,7 +45,7 @@ def register():
 def magic_reset():
     db.drop_all()
     db.create_all()
-    return "DATABASE CLEANED. Go to /auth/register and create an Admin account."
+    return "DATABASE CLEANED. Go to /auth/register now."
 
 @auth_bp.route('/logout')
 @login_required
