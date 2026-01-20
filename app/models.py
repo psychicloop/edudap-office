@@ -61,7 +61,7 @@ class AttendanceType:
 
 # --- LEAVE / HOLIDAYS ---
 class HolidayRequest(db.Model):
-    __tablename__ = 'leave'  # Saves to a table named 'leave'
+    __tablename__ = 'leave'  # Saves to table 'leave'
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     start_date = db.Column(db.DateTime, nullable=False)
@@ -76,10 +76,10 @@ class HolidayStatus:
     APPROVED = 'Approved'
     REJECTED = 'Rejected'
 
-# Alias for compatibility if some code uses 'Leave' instead of 'HolidayRequest'
+# Alias for compatibility
 Leave = HolidayRequest
 
-# --- LOCATION (This was the missing piece!) ---
+# --- LOCATION ---
 class LocationPing(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
@@ -88,3 +88,23 @@ class LocationPing(db.Model):
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
     
     user = db.relationship('User', backref='locations')
+
+# --- TODOS (This was the missing piece!) ---
+class Todo(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    title = db.Column(db.String(200), nullable=False)
+    status = db.Column(db.String(20), default='Pending')
+    priority = db.Column(db.String(20), default='Medium')
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    user = db.relationship('User', backref='todos')
+
+class TodoStatus:
+    PENDING = 'Pending'
+    COMPLETED = 'Completed'
+
+class Priority:
+    HIGH = 'High'
+    MEDIUM = 'Medium'
+    LOW = 'Low'
