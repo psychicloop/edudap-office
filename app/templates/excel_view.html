@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="container-fluid px-4">
+    <div class="row mb-3 align-items-center">
+        <div class="col">
+            <a href="{{ url_for('admin.dashboard') }}" class="text-decoration-none fw-bold" style="color: var(--edudap-blue);">
+                <i class="bi bi-arrow-left me-1"></i> Back to Dashboard
+            </a>
+        </div>
+        <div class="col text-end">
+            <span class="badge bg-success rounded-0">EXCEL READ-ONLY</span>
+        </div>
+    </div>
+
+    <div class="card rounded-0 border-secondary">
+        <div class="card-header bg-light py-1 border-bottom border-secondary rounded-0">
+            <small class="text-muted fw-bold">FILENAME: {{ filename }}</small>
+        </div>
+        <div class="card-body p-0 overflow-auto" style="min-height: 500px; background: white;">
+            
+            <table class="table table-bordered table-sm mb-0 excel-grid">
+                <thead>
+                    <tr>
+                        <th>A</th>
+                        <th>B</th>
+                        <th>C</th>
+                        <th>D</th>
+                        <th>E</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>1</td>
+                        <td>Make: Borosil</td>
+                        <td>Cat No: 12345</td>
+                        <td>Qty: 10</td>
+                        <td>Price: 500.00</td>
+                    </tr>
+                    <tr>
+                        <td>2</td>
+                        <td>Make: Tarson</td>
+                        <td>Cat No: 99887</td>
+                        <td>Qty: 50</td>
+                        <td>Price: 120.00</td>
+                    </tr>
+                    {% for i in range(3, 15) %}
+                    <tr>
+                        <td style="background-color: #f3f3f3; text-align: center; color: #666; width: 40px;">{{ i }}</td>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+
+        </div>
+    </div>
+</div>
+
+<style>
+    /* EXCEL-LIKE STYLING (Strict Grid, No Beautification) */
+    .excel-grid {
+        font-family: 'Calibri', 'Arial', sans-serif;
+        font-size: 14px;
+        color: #000;
+        border-collapse: collapse;
+    }
+    .excel-grid thead th {
+        background-color: #e6e6e6; /* Excel Gray Header */
+        border: 1px solid #999;
+        text-align: center;
+        font-weight: normal;
+        color: #333;
+        width: 150px; /* Uniform column width */
+    }
+    .excel-grid td {
+        border: 1px solid #d4d4d4; /* Standard Grid Lines */
+        padding: 4px 8px;
+        white-space: nowrap;
+    }
+    .excel-grid tr:first-child td:first-child,
+    .excel-grid tr:nth-child(n+2) td:first-child {
+        /* Styling for Row Numbers (Column A if used as index) */
+        background-color: #f3f3f3;
+        text-align: center;
+        color: #666;
+        width: 40px;
+        font-weight: bold;
+    }
+    .excel-grid tr:nth-child(even) {
+        background-color: transparent; /* No zebra striping, strict white */
+    }
+</style>
+
+{% endblock %}
