@@ -22,9 +22,13 @@ class Priority:
     MEDIUM = 'Medium'
     HIGH = 'High'
 
-# --- MODELS ---
+# FIX: Added ExpenseStatus class so expenses.py works
+class ExpenseStatus:
+    PENDING = 'Pending'
+    APPROVED = 'Approved'
+    REJECTED = 'Rejected'
 
-# FIX: Added Role class back so auth.py doesn't crash
+# --- MODELS ---
 class Role(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(50), unique=True)
@@ -33,6 +37,7 @@ class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(100), unique=True, nullable=False)
     password_hash = db.Column(db.String(200), nullable=False)
+    # roles = db.relationship('Role', secondary='user_roles') 
 
 class Quotation(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -48,7 +53,7 @@ class Expense(db.Model):
     receipt_filename = db.Column(db.String(200), nullable=True)
     caption = db.Column(db.String(200), nullable=True)
     submitted_at = db.Column(db.DateTime, default=datetime.utcnow)
-    status = db.Column(db.String(20), default='Pending')
+    status = db.Column(db.String(20), default=ExpenseStatus.PENDING)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     user = db.relationship('User', backref='expenses')
 
@@ -68,14 +73,4 @@ class HolidayRequest(db.Model):
     reason = db.Column(db.String(200), nullable=False)
     status = db.Column(db.String(20), default=HolidayStatus.PENDING)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    user = db.relationship('User', backref='holiday_requests')
-
-class Todo(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    title = db.Column(db.String(200), nullable=False)
-    status = db.Column(db.String(20), default=TodoStatus.PENDING)
-    priority = db.Column(db.String(20), default=Priority.MEDIUM)
-    due_date = db.Column(db.DateTime, nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    user = db.relationship('User', backref='todos')
+    user = db.relationship('User', backref='holiday_requests
