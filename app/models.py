@@ -44,15 +44,14 @@ class Expense(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     user = db.relationship('User', backref='expenses')
 
-# Reverted to basic version to stop errors
 class Attendance(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     date = db.Column(db.Date, nullable=False)
+    # Simple status for now, avoiding complex time fields until designed
     status = db.Column(db.String(20), default=AttendanceType.ABSENT)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     user = db.relationship('User', backref='attendance_records')
 
-# Kept to prevent ImportError from your existing files
 class HolidayRequest(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     start_date = db.Column(db.Date, nullable=False)
@@ -61,6 +60,14 @@ class HolidayRequest(db.Model):
     status = db.Column(db.String(20), default=HolidayStatus.PENDING)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     user = db.relationship('User', backref='holiday_requests')
+
+class LocationPing(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    latitude = db.Column(db.Float, nullable=False)
+    longitude = db.Column(db.Float, nullable=False)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    user = db.relationship('User', backref='pings')
 
 class Todo(db.Model):
     id = db.Column(db.Integer, primary_key=True)
