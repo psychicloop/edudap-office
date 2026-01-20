@@ -61,25 +61,4 @@ class HolidayRequest(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     start_date = db.Column(db.Date, nullable=False)
     end_date = db.Column(db.Date, nullable=False)
-    reason = db.Column(db.String(200), nullable=False)
-    status = db.Column(db.String(20), default=HolidayStatus.PENDING)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    user = db.relationship('User', backref='holiday_requests')
-
-class Todo(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    title = db.Column(db.String(200), nullable=False)
-    status = db.Column(db.String(20), default=TodoStatus.PENDING)
-    priority = db.Column(db.String(20), default=Priority.MEDIUM)
-    due_date = db.Column(db.DateTime, nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    user = db.relationship('User', backref='todos')
-
-class LocationPing(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    latitude = db.Column(db.Float, nullable=False)
-    longitude = db.Column(db.Float, nullable=False)
-    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
-    user = db.relationship('User', backref='pings')
+    reason = db.Column(db.String(200), nullable=False
