@@ -18,7 +18,7 @@
         </form>
 
         <div class="d-flex align-items-center bg-white px-4 py-2 border-top shadow-sm mb-3" style="border-radius: 0 0 8px 8px;">
-            <span class="small text-muted fw-bold me-3 text-uppercase" style="letter-spacing: 1px;">Recent:</span>
+            <span class="small text-muted fw-bold me-3 text-uppercase" style="letter-spacing: 1px;">Search History:</span>
             <div class="d-flex gap-2">
                 <span class="badge bg-light text-secondary border fw-normal">Plasticware</span>
                 <span class="badge bg-light text-secondary border fw-normal">Glassware</span>
@@ -41,8 +41,8 @@
         <div class="card border-0 shadow-sm h-100" style="border-top: 4px solid var(--edudap-green);">
             <div class="card-header bg-white py-3 border-bottom-0 d-flex justify-content-between align-items-center">
                 <h5 class="mb-0 fw-bold" style="color: var(--edudap-blue);">
-                    <i class="bi bi-folder2-open me-2"></i>
-                    {% if request.args.get('q') %} Search Results {% else %} Recent Files {% endif %}
+                    <i class="bi bi-clock-history me-2"></i>
+                    {% if request.args.get('q') %} Search Results {% else %} Search History {% endif %}
                 </h5>
                 <span class="badge bg-light text-dark">{{ quotes|length }} Files</span>
             </div>
@@ -81,7 +81,7 @@
                     <div class="mb-3">
                         <i class="bi bi-inbox text-muted opacity-25" style="font-size: 3rem;"></i>
                     </div>
-                    <p class="text-muted">No documents found. Try searching for a catalog number.</p>
+                    <p class="text-muted">No documents found.</p>
                 </div>
                 {% endif %}
             </div>
