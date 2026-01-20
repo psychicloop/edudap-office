@@ -12,23 +12,26 @@ login_manager = LoginManager()
 
 def create_app():
     # -------------------------
-    # SMART FOLDER DETECTION
+    # 1. CALCULATE EXACT PATHS (THE FIX)
     # -------------------------
-    base_dir = os.path.abspath(os.path.dirname(__file__))
-    
-    # Check if 'templates' is inside 'app' or outside 'app'
-    if os.path.exists(os.path.join(base_dir, 'templates')):
-        template_dir = 'templates'
-    else:
-        template_dir = '../templates'
-        
-    # Check if 'static' is inside 'app' or outside 'app'
-    if os.path.exists(os.path.join(base_dir, 'static')):
-        static_dir = 'static'
-    else:
-        static_dir = '../static'
+    # Get the folder where this file (__init__.py) lives
+    app_dir = os.path.abspath(os.path.dirname(__file__))
+    # Go up one level to find the project root (where static/ and templates/ usually are)
+    project_root = os.path.abspath(os.path.join(app_dir, '..'))
 
-    # Initialize App with the correct folders
+    # Define the folders explicitly using the full system path
+    # Try finding them in the root first (common structure)
+    template_dir = os.path.join(project_root, 'templates')
+    static_dir = os.path.join(project_root, 'static')
+    upload_dir = os.path.join(project_root, 'uploads')
+    
+    # Fallback: If they aren't in root, assume they are inside the app folder
+    if not os.path.exists(template_dir):
+        template_dir = os.path.join(app_dir, 'templates')
+    if not os.path.exists(static_dir):
+        static_dir = os.path.join(app_dir, 'static')
+
+    # Initialize App with these EXACT paths
     app = Flask(__name__, template_folder=template_dir, static_folder=static_dir)
 
     app.config['SECRET_KEY'] = os.environ.get("SECRET_KEY", "change-me")
@@ -36,33 +39,26 @@ def create_app():
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
     # -------------------------
-    # UPLOAD FOLDER CONFIG
+    # 2. CONFIGURE UPLOAD FOLDER
     # -------------------------
-    # We save uploads one level up from the app
-    upload_folder = os.path.join(base_dir, '..', 'uploads')
-    app.config['UPLOAD_FOLDER'] = upload_folder
-    
-    if not os.path.exists(upload_folder):
-        os.makedirs(upload_folder)
+    app.config['UPLOAD_FOLDER'] = upload_dir
+    if not os.path.exists(upload_dir):
+        os.makedirs(upload_dir)
 
     # -------------------------
-    # INITIALIZE EXTENSIONS
+    # 3. INITIALIZE EXTENSIONS
     # -------------------------
     db.init_app(app)
     login_manager.init_app(app)
     login_manager.login_view = "auth.login"
 
-    # -------------------------
-    # USER LOADER
-    # -------------------------
     from .models import User
-
     @login_manager.user_loader
     def load_user(user_id):
         return User.query.get(int(user_id))
 
     # -------------------------
-    # BLUEPRINTS
+    # 4. BLUEPRINTS
     # -------------------------
     from .auth import auth_bp
     from .attendance import attendance_bp
@@ -83,43 +79,31 @@ def create_app():
     app.register_blueprint(admin_bp, url_prefix="/admin")
 
     # -------------------------
-    # SERVE UPLOADED FILES
+    # 5. ROUTES
     # -------------------------
     @app.route("/uploads/<path:filename>")
     def uploaded_files(filename):
         return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
-    # -------------------------
-    # ROOT REDIRECT
-    # -------------------------
     @app.route("/")
     def root():
         return redirect(url_for("auth.login"))
 
     # -------------------------
-    # DATABASE & SEARCH TABLE SETUP
+    # 6. DATABASE SETUP
     # -------------------------
     with app.app_context():
         db.create_all()
         try:
-            # Create the Search Table if it doesn't exist
             db.session.execute(text("""
                 CREATE VIRTUAL TABLE IF NOT EXISTS quotation_fts USING fts5(
-                    parsed_text, 
-                    brand, 
-                    make, 
-                    cas_no, 
-                    product_name, 
-                    instrument, 
-                    chemical, 
-                    reagent, 
-                    kit, 
-                    media
+                    parsed_text, brand, make, cas_no, product_name, 
+                    instrument, chemical, reagent, kit, media
                 );
             """))
             db.session.commit()
             print("Search table 'quotation_fts' checked/created successfully.")
         except Exception as e:
-            print(f"Warning: Could not create FTS table. Search might fail. Error: {e}")
+            print(f"Warning: FTS table issue (Safe to ignore if search works): {e}")
 
     return app
