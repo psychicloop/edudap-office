@@ -61,7 +61,7 @@ class AttendanceType:
 
 # --- LEAVE / HOLIDAYS ---
 class HolidayRequest(db.Model):
-    __tablename__ = 'leave'  # Saves to table 'leave'
+    __tablename__ = 'leave'
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     start_date = db.Column(db.DateTime, nullable=False)
@@ -89,7 +89,7 @@ class LocationPing(db.Model):
     
     user = db.relationship('User', backref='locations')
 
-# --- TODOS (This was the missing piece!) ---
+# --- TODOS ---
 class Todo(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
@@ -108,3 +108,13 @@ class Priority:
     HIGH = 'High'
     MEDIUM = 'Medium'
     LOW = 'Low'
+
+# --- NOTIFICATIONS (This was missing!) ---
+class Notification(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    message = db.Column(db.String(500), nullable=False)
+    is_read = db.Column(db.Boolean, default=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    user = db.relationship('User', backref='notifications')
