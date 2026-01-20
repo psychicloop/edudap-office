@@ -1,63 +1,69 @@
+{% extends "layout.html" %}
 
-{% extends 'base.html' %}
 {% block content %}
-<h3>Quotations Library</h3>
-<form method="get" action="{{ url_for('quotations.search') }}" class="row g-2 align-items-end">
-  <div class="col-md-6"><label class="form-label">Search</label><input name="q" class="form-control" placeholder="brand, make, name, CAS No, product name, instrument, chemical, reagent, kit, media"></div>
-  <div class="col-auto"><button class="btn btn-primary">Search</button></div>
-</form>
-<hr>
-<form method="post" action="{{ url_for('quotations.upload') }}" enctype="multipart/form-data" class="row g-2 align-items-end">
-  <div class="col-md-3"><label class="form-label">File (PDF/Excel)</label><input type="file" name="file" class="form-control" required></div>
-  <div class="col-md-3"><label class="form-label">Title</label><input name="title" class="form-control"></div>
-  <div class="col-md-6"><label class="form-label">Notes</label><input name="notes" class="form-control"></div>
-  <div class="col-auto"><button class="btn btn-success">Upload</button></div>
-</form>
-<hr>
-<form method="post" action="{{ url_for('quotations.bulk_delete') }}" id="bulkDeleteForm" class="mb-2">
-  <input type="hidden" name="ids" id="bulkDeleteIds">
-  <button class="btn btn-outline-danger btn-sm" type="submit">Bulk Delete</button>
-</form>
-<form method="post" action="{{ url_for('quotations.bulk_image') }}" id="bulkImageForm" class="mb-3" enctype="multipart/form-data">
-  <input type="hidden" name="ids" id="bulkImageIds">
-  <div class="input-group input-group-sm" style="max-width:480px;">
-    <input class="form-control" type="file" name="image" accept="image/*">
-    <button class="btn btn-outline-primary" type="submit">Bulk Replace Image</button>
+<div class="container-fluid">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 style="margin:0;">Quotations Repository</h2>
   </div>
-  <div class="form-text">Choose one image to apply to all selected items.</div>
-</form>
 
-<h5>Recent Uploads</h5>
-<table class="table table-sm table-striped"><thead><tr><th><input type="checkbox" id="selAll"></th><th>When</th><th>Title</th><th>Brand</th><th>Make</th><th>CAS</th><th>Product</th><th>Image</th><th>File</th></tr></thead>
-<tbody>
-  {% for q in records %}
-    <tr>
-      <td><input type="checkbox" class="sel" value="{{ q.id }}"></td>
-      <td>{{ q.uploaded_at }}</td>
-      <td>{{ q.title }}</td>
-      <td>{{ q.brand }}</td>
-      <td>{{ q.make }}</td>
-      <td>{{ q.cas_no }}</td>
-      <td>{{ q.product_name }}</td>
-      <td>{% if q.image_path %}<img src="/{{ q.image_path }}" style="height:38px;border-radius:6px">{% endif %}</td>
-      <td>{% if q.file_path %}<a href="/{{ q.file_path }}" target="_blank">Open</a>{% endif %}</td>
-    </tr>
-  {% endfor %}
-</tbody></table>
-<script>
-  const selAll = document.getElementById('selAll');
-  if(selAll){
-    selAll.addEventListener('change', ()=>{
-      document.querySelectorAll('.sel').forEach(cb=>{cb.checked = selAll.checked});
-      updateIds();
-    });
-    document.querySelectorAll('.sel').forEach(cb=>cb.addEventListener('change', updateIds));
-  }
-  function updateIds(){
-    const ids = Array.from(document.querySelectorAll('.sel:checked')).map(cb=>cb.value).join(',');
-    const del = document.getElementById('bulkDeleteIds');
-    const img = document.getElementById('bulkImageIds');
-    if(del) del.value = ids; if(img) img.value = ids;
-  }
-</script>
+  <div class="card mb-4">
+    <h5 class="card-title mb-3" style="color: var(--brand-blue);">Upload New Quotation (Excel/PDF)</h5>
+    <form action="{{ url_for('quotations.upload_file') }}" method="post" enctype="multipart/form-data" class="d-flex gap-3 align-items-end">
+      
+      <div style="flex-grow: 1;">
+        <label for="fileInput" class="form-label">Select File</label>
+        <input type="file" class="form-control" id="fileInput" name="file" required>
+      </div>
+
+      <button type="submit" class="btn btn-primary" style="height: fit-content;">
+        <i class="bi bi-cloud-upload me-1"></i> Upload
+      </button>
+    </form>
+    <p class="text-muted mt-2" style="font-size: 0.85rem;">
+      * Upload Excel (.xlsx, .csv) to enable detailed item search. PDFs are for viewing only.
+    </p>
+  </div>
+
+  <div class="card">
+    <h5 class="card-title mb-3" style="color: var(--brand-blue);">Recent Uploads</h5>
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead class="table-light">
+          <tr>
+            <th scope="col" style="width: 5%;">ID</th>
+            <th scope="col" style="width: 40%;">Filename / Addressed To</th>
+            <th scope="col" style="width: 15%;">Uploaded By</th>
+            <th scope="col" style="width: 15%;">Date</th>
+            <th scope="col" style="width: 15%; text-align: right;">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for q in quotations %}
+          <tr>
+            <td><span class="text-muted">#{{ q.id }}</span></td>
+            <td style="font-weight: 500; color: var(--brand-blue);">
+                <i class="bi bi-file-earmark-text me-2"></i>
+                {{ q.filename }}
+            </td>
+            <td>{{ q.uploader.username if q.uploader else 'Unknown' }}</td>
+            <td>{{ q.uploaded_at.strftime('%Y-%m-%d') }}</td>
+            <td class="text-end">
+                <a href="{{ url_for('uploaded_files', filename=q.filepath) }}" target="_blank" class="btn btn-sm btn-outline-primary">
+                    <i class="bi bi-eye me-1"></i> View/Download
+                </a>
+            </td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="5" class="text-center p-4 text-muted">
+              <i class="bi bi-inbox fs-4 d-block mb-2"></i>
+              No quotations uploaded yet.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
 {% endblock %}
