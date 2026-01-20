@@ -2,7 +2,7 @@ from . import db
 from flask_login import UserMixin
 from datetime import datetime
 
-# --- ENUMS (Required by other modules) ---
+# --- ENUMS ---
 class AttendanceType:
     PRESENT, ABSENT, HALF_DAY = 'Present', 'Absent', 'Half Day'
 
@@ -19,6 +19,8 @@ class ExpenseStatus:
     PENDING, APPROVED, REJECTED = 'Pending', 'Approved', 'Rejected'
 
 # --- MODELS ---
+
+# FIX: Added Role class to stop the ImportError in expenses.py
 class Role(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(50), unique=True)
