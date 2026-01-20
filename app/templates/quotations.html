@@ -1,75 +1,52 @@
-{% extends "layout.html" %}
+{% extends "base.html" %}
 
 {% block content %}
-<div class="container-fluid">
-  
-  <div class="d-flex justify-content-between align-items-center mb-4">
-    <h2 style="margin:0; color: var(--brand-blue);">Quotations Repository</h2>
-  </div>
-
-  <div class="card mb-4">
-    <h5 class="card-title mb-3" style="color: var(--brand-blue); border-bottom: 1px solid #eee; padding-bottom: 10px;">
-      <i class="bi bi-cloud-upload me-2"></i>Upload Quotation
-    </h5>
-    
-    <form action="{{ url_for('quotations.upload') }}" method="post" enctype="multipart/form-data" class="d-flex gap-3 align-items-end">
-      
-      <div style="flex-grow: 1;">
-        <label class="form-label" style="font-weight: 600;">Select Excel or PDF File</label>
-        <input type="file" class="form-control" name="file" required>
-      </div>
-
-      <button type="submit" class="btn btn-primary" style="height: fit-content;">
-        Upload File
-      </button>
-    </form>
-    
-    <p class="text-muted mt-2" style="font-size: 0.85rem;">
-      * <strong>Tip:</strong> Uploading an Excel file allows the system to automatically read items and prices later.
-    </p>
-  </div>
-
-  <div class="card">
-    <h5 class="card-title mb-3" style="color: var(--brand-blue);">Recent Uploads</h5>
-    <div class="table-responsive">
-      <table class="table table-hover align-middle">
-        <thead class="table-light">
-          <tr>
-            <th style="width: 5%;">#</th>
-            <th style="width: 50%;">File Name</th>
-            <th style="width: 20%;">Date</th>
-            <th style="width: 25%; text-align: right;">Action</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for q in quotations %}
-          <tr>
-            <td>{{ q.id }}</td>
-            <td style="font-weight: 500; color: var(--text-main);">
-                {% if q.filename.endswith('.pdf') %}
-                  <i class="bi bi-file-pdf text-danger me-2"></i>
-                {% else %}
-                  <i class="bi bi-file-earmark-excel text-success me-2"></i>
-                {% endif %}
-                {{ q.filename }}
-            </td>
-            <td>{{ q.uploaded_at.strftime('%Y-%m-%d') }}</td>
-            <td class="text-end">
-                <a href="{{ url_for('uploaded_files', filename=q.filepath) }}" target="_blank" class="btn btn-sm btn-outline-primary">
-                    View / Download
-                </a>
-            </td>
-          </tr>
-          {% else %}
-          <tr>
-            <td colspan="4" class="text-center p-4 text-muted">
-              No quotations uploaded yet.
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Quotations</h2>
     </div>
-  </div>
+
+    <div class="card p-4 mb-4">
+        <form action="{{ url_for('quotations.upload') }}" method="post" enctype="multipart/form-data" class="row g-3 align-items-end">
+            <div class="col-md-9">
+                <label for="file" class="form-label">Upload Excel/PDF</label>
+                <input type="file" name="file" class="form-control" required>
+            </div>
+            <div class="col-md-3">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="bi bi-cloud-upload"></i> Upload
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <div class="mb-3">
+        <input type="text" id="searchInput" class="form-control" placeholder="Search files...">
+    </div>
+
+    <div class="list-group" id="filesList">
+        {% for q in quotations %}
+        <a href="#" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+            <div>
+                <i class="bi bi-file-earmark-text me-2 text-primary"></i>
+                {{ q.filename }}
+                <br>
+                <small class="text-muted">Uploaded by {{ q.uploader.username }} on {{ q.uploaded_at.strftime('%Y-%m-%d') }}</small>
+            </div>
+            <i class="bi bi-download text-secondary"></i>
+        </a>
+        {% endfor %}
+    </div>
 </div>
+
+<script>
+document.getElementById('searchInput').addEventListener('keyup', function() {
+    let filter = this.value.toLowerCase();
+    let items = document.querySelectorAll('#filesList a');
+    items.forEach(function(item) {
+        let text = item.textContent.toLowerCase();
+        item.style.display = text.includes(filter) ? '' : 'none';
+    });
+});
+</script>
 {% endblock %}
