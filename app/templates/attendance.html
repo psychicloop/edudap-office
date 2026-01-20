@@ -6,47 +6,45 @@
         
         <div class="card border-0 shadow-sm mb-4">
             <div class="card-header bg-white py-3 border-bottom-0">
-                <h5 class="fw-bold mb-0" style="color: var(--edudap-blue);">
-                    <i class="bi bi-calendar-check me-2"></i>Daily Attendance
-                </h5>
+                <h5 class="fw-bold mb-0" style="color: var(--edudap-blue);">Daily Attendance</h5>
             </div>
             <div class="card-body text-center py-5">
                 
-                <h2 class="display-6 fw-bold mb-1">{{ today.strftime('%A, %d %B %Y') }}</h2>
-                <p class="text-muted mb-5">Mark your attendance for today</p>
+                <h4 class="fw-bold mb-2">{{ today.strftime('%A, %d %B %Y') }}</h4>
+                <p class="text-muted mb-4 small">Please mark your attendance below.</p>
 
                 {% if not record %}
-                    <div class="status-indicator mb-4 text-secondary">
-                        <i class="bi bi-circle-fill me-2"></i>Not Punched In
+                    <div class="mb-4">
+                        <span class="badge bg-secondary px-3 py-2">Status: Not Started</span>
                     </div>
                     <form method="POST">
                         <input type="hidden" name="action" value="punch_in">
-                        <button type="submit" class="btn btn-lg px-5 py-3 fw-bold text-white shadow-sm" 
-                                style="background-color: var(--edudap-green); border-radius: 50px; font-size: 1.2rem;">
-                            <i class="bi bi-fingerprint me-2"></i> PUNCH IN
+                        <button type="submit" class="btn btn-primary px-5 py-2 fw-bold" 
+                                style="background-color: var(--edudap-green); border: none;">
+                            PUNCH IN
                         </button>
                     </form>
 
                 {% elif record.in_time and not record.out_time %}
-                    <div class="status-indicator mb-4 text-success fw-bold">
-                        <i class="bi bi-record-circle me-2"></i>In Time: {{ record.in_time.strftime('%I:%M %p') }}
+                    <div class="mb-4">
+                        <div class="text-success fw-bold mb-1">
+                            <i class="bi bi-clock me-1"></i> Punched In at {{ record.in_time.strftime('%I:%M %p') }}
+                        </div>
                     </div>
                     <form method="POST">
                         <input type="hidden" name="action" value="punch_out">
-                        <button type="submit" class="btn btn-danger btn-lg px-5 py-3 fw-bold shadow-sm" 
-                                style="border-radius: 50px; font-size: 1.2rem;">
-                            <i class="bi bi-box-arrow-right me-2"></i> PUNCH OUT
+                        <button type="submit" class="btn btn-danger px-5 py-2 fw-bold">
+                            PUNCH OUT
                         </button>
                     </form>
 
                 {% else %}
-                    <div class="alert alert-success d-inline-block px-5 py-3">
-                        <h4 class="alert-heading fw-bold"><i class="bi bi-check-circle-fill me-2"></i>Day Completed</h4>
-                        <hr>
-                        <p class="mb-0">
-                            <strong>In:</strong> {{ record.in_time.strftime('%I:%M %p') }} &nbsp;|&nbsp; 
-                            <strong>Out:</strong> {{ record.out_time.strftime('%I:%M %p') }}
-                        </p>
+                    <div class="alert alert-success d-inline-block px-4 py-2">
+                        <div class="fw-bold"><i class="bi bi-check-circle-fill me-2"></i>Day Completed</div>
+                        <div class="small mt-1">
+                            In: {{ record.in_time.strftime('%I:%M %p') }} &bull; 
+                            Out: {{ record.out_time.strftime('%I:%M %p') }}
+                        </div>
                     </div>
                 {% endif %}
 
@@ -55,11 +53,11 @@
 
         <div class="card border-0 shadow-sm">
             <div class="card-header bg-light py-2">
-                <small class="fw-bold text-uppercase text-muted">Recent History</small>
+                <small class="fw-bold text-uppercase text-muted">Last 7 Days</small>
             </div>
             <div class="card-body p-0">
-                <table class="table table-hover mb-0 align-middle">
-                    <thead class="bg-white">
+                <table class="table table-hover mb-0 align-middle small">
+                    <thead class="bg-white text-muted">
                         <tr>
                             <th class="ps-4">Date</th>
                             <th>In Time</th>
@@ -70,10 +68,16 @@
                     <tbody>
                         {% for row in history %}
                         <tr>
-                            <td class="ps-4 fw-bold text-secondary">{{ row.date.strftime('%d-%b') }}</td>
+                            <td class="ps-4 fw-bold text-dark">{{ row.date.strftime('%d-%b') }}</td>
                             <td>{{ row.in_time.strftime('%I:%M %p') if row.in_time else '-' }}</td>
                             <td>{{ row.out_time.strftime('%I:%M %p') if row.out_time else '-' }}</td>
-                            <td><span class="badge bg-success bg-opacity-10 text-success border border-success">Present</span></td>
+                            <td>
+                                {% if row.status == 'Present' %}
+                                    <span class="text-success fw-bold">Present</span>
+                                {% else %}
+                                    <span class="text-muted">Absent</span>
+                                {% endif %}
+                            </td>
                         </tr>
                         {% endfor %}
                     </tbody>
