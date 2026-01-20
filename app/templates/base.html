@@ -21,19 +21,30 @@
             color: #333;
         }
 
-        /* --- 1. SPECIAL HEADER FOR LOGIN/REGISTER (Centered CRM) --- */
+        /* --- 1. SPECIAL HEADER FOR LOGIN/REGISTER --- */
         .auth-header {
             background: white;
             border-bottom: 3px solid var(--edudap-teal);
-            padding: 1.5rem 0;
+            padding: 1rem 0; /* Reduced padding for tighter look */
             text-align: center;
         }
+        .auth-logo {
+            height: 55px;
+            width: auto;
+            object-fit: contain;
+            display: inline-block;
+            pointer-events: none; /* MAKES IT NON-CLICKABLE */
+        }
         .crm-title {
-            font-size: 2rem;
+            font-size: 1.8rem;
             font-weight: 800;
             color: var(--edudap-blue);
             letter-spacing: 2px;
             text-transform: uppercase;
+            margin-left: 15px;
+            vertical-align: middle;
+            border-left: 2px solid #ddd;
+            padding-left: 15px;
         }
 
         /* --- 2. STANDARD NAVIGATION (Logged In) --- */
@@ -66,10 +77,10 @@
     
     {% if request.endpoint in ['auth.login', 'auth.register'] %}
     <div class="auth-header shadow-sm">
-        <div class="container">
-            <a href="/" class="text-decoration-none">
-                <span class="crm-title">CRM</span>
-            </a>
+        <div class="container d-flex justify-content-center align-items-center">
+            <img src="{{ url_for('static', filename='logo.png') }}" alt="EduDAP" class="auth-logo">
+            
+            <span class="crm-title">CRM</span>
         </div>
     </div>
     {% endif %}
