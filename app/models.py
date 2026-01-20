@@ -21,7 +21,6 @@ class Expense(db.Model):
     reviewed_by = db.Column(db.Integer, nullable=True)
     reviewed_at = db.Column(db.DateTime, nullable=True)
     
-    # Relationships
     user = db.relationship('User', foreign_keys=[user_id], backref='expenses')
 
 class ExpenseStatus:
@@ -33,15 +32,17 @@ class Role:
     ADMIN = 'Admin'
     USER = 'User'
 
-# --- THE FIX IS HERE ---
+# --- THIS WAS MISSING ---
+class AttendanceType:
+    PRESENT = 'Present'
+    ABSENT = 'Absent'
+    HALF_DAY = 'Half Day'
+
 class Quotation(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    
-    # We added these to match your Upload Code
     filename = db.Column(db.String(300))
     filepath = db.Column(db.String(500)) 
     uploaded_at = db.Column(db.DateTime, default=datetime.utcnow)
-    
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
     uploader = db.relationship('User', backref='uploads')
 
