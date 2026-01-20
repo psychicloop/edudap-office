@@ -70,7 +70,7 @@
                                 </td>
                                 <td><span class="badge bg-light text-dark border">{{ quote.client_name or 'Unknown' }}</span></td>
                                 <td class="text-end pe-4">
-                                    <a href="#" class="btn btn-sm btn-outline-primary me-1" style="color: var(--edudap-blue); border-color: var(--edudap-blue);">View</a>
+                                    <a href="{{ url_for('admin.view_file', file_id=quote.id) }}" class="btn btn-sm btn-outline-primary me-1" style="color: var(--edudap-blue); border-color: var(--edudap-blue);">View</a>
                                     <a href="#" class="btn btn-sm text-white" style="background-color: var(--edudap-green); border: none;">
                                         <i class="bi bi-download"></i>
                                     </a>
