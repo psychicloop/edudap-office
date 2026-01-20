@@ -60,9 +60,8 @@ class AttendanceType:
     HALF_DAY = 'Half Day'
 
 # --- LEAVE / HOLIDAYS ---
-# We renamed this from 'Leave' to 'HolidayRequest' to match your leave.py code
 class HolidayRequest(db.Model):
-    __tablename__ = 'leave'  # Saves to a table named 'leave' in DB
+    __tablename__ = 'leave'  # Saves to a table named 'leave'
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     start_date = db.Column(db.DateTime, nullable=False)
@@ -77,5 +76,15 @@ class HolidayStatus:
     APPROVED = 'Approved'
     REJECTED = 'Rejected'
 
-# (Optional: Alias if any other code uses 'Leave')
+# Alias for compatibility if some code uses 'Leave' instead of 'HolidayRequest'
 Leave = HolidayRequest
+
+# --- LOCATION (This was the missing piece!) ---
+class LocationPing(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    latitude = db.Column(db.Float, nullable=False)
+    longitude = db.Column(db.Float, nullable=False)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    user = db.relationship('User', backref='locations')
