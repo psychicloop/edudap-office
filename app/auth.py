@@ -1,7 +1,8 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session
 from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
-from .models import User, db
+from sqlalchemy.exc import IntegrityError
+from .models import User, SiteFlag, db
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -12,32 +13,49 @@ def register():
         
     if request.method == 'POST':
         username = request.form.get('username')
-        email = request.form.get('email')
+        email = request.form.get('email').lower().strip()
         password = request.form.get('password')
-        role = request.form.get('role')
 
-        user = User.query.filter_by(email=email).first()
-        if user:
+        # Basic Check
+        if User.query.filter_by(email=email).first():
             flash('Email already exists.', 'danger')
             return redirect(url_for('auth.register'))
         
-        new_user = User(
-            username=username, 
-            email=email, 
-            password_hash=generate_password_hash(password, method='pbkdf2:sha256'),
-            role=role if role else 'Employee'
-        )
+        role = 'Employee'
         
-        db.session.add(new_user)
-        db.session.commit()
-        
-        # --- SURGICAL FIX: Clear session to prevent identity bleed ---
-        session.clear()
-        login_user(new_user)
-        session.modified = True
-        
-        flash('Account created successfully! Welcome.', 'success')
-        return redirect(url_for('admin.dashboard'))
+        # 1. Race-Safe Admin Claim
+        try:
+            with db.session.begin_nested():
+                flag = SiteFlag(key='first_admin_created', value='1')
+                db.session.add(flag)
+            role = 'Admin'
+        except IntegrityError:
+            db.session.rollback()
+            # Flag exists -> We are Employee
+
+        # 2. Race-Safe User Creation
+        try:
+            new_user = User(
+                username=username, 
+                email=email, 
+                password_hash=generate_password_hash(password, method='pbkdf2:sha256'),
+                role=role
+            )
+            db.session.add(new_user)
+            db.session.commit()
+            
+            # Auto-Login
+            session.clear()
+            login_user(new_user)
+            session.modified = True
+            
+            flash(f'Welcome! You have been registered as {role}.', 'success')
+            return redirect(url_for('admin.dashboard'))
+            
+        except IntegrityError:
+            db.session.rollback()
+            flash('Username or Email already taken.', 'danger')
+            return redirect(url_for('auth.register'))
 
     return render_template('register.html')
 
@@ -53,14 +71,12 @@ def login():
         user = User.query.filter_by(email=email).first()
         
         if user and check_password_hash(user.password_hash, password):
-            # --- SURGICAL FIX: Clear session to prevent fixation ---
             session.clear()
             login_user(user, remember=True)
             session.modified = True
-            
             return redirect(url_for('admin.dashboard'))
         else:
-            flash('Login failed. Check email and password.', 'danger')
+            flash('Login failed.', 'danger')
             
     return render_template('login.html')
 
@@ -68,15 +84,7 @@ def login():
 @login_required
 def logout():
     logout_user()
-    # --- SURGICAL FIX: Ensure session is wiped clean ---
     session.clear()
     session.modified = True
-    
-    flash('You have been logged out.', 'info')
+    flash('Logged out.', 'info')
     return redirect(url_for('auth.login'))
-
-@auth_bp.route('/magic-reset')
-def magic_reset():
-    db.drop_all()
-    db.create_all()
-    return "Database has been reset."
