@@ -1,54 +1,74 @@
 {% extends "base.html" %}
+{% block title %}Dashboard · EduDAP Office{% endblock %}
+
+{% block breadcrumb %}
+<i class="bi bi-speedometer2"></i> Workspace / Dashboard
+{% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-    <div class="mb-4">
-        <h3 class="text-muted">Dashboard Overview</h3>
-        <p>Welcome, {{ current_user.username }}!</p>
+<div class="row g-4">
+    <div class="col-12 col-md-6 col-xl-3">
+        <div class="card h-100 border-0 shadow-sm" style="border-left: 4px solid var(--edudap-blue) !important;">
+            <div class="card-body">
+                <div class="text-uppercase small fw-bold text-muted">Total Files</div>
+                <div class="d-flex justify-content-between align-items-center mt-2">
+                    <h2 class="mb-0 fw-bold text-dark">{{ total_files or 0 }}</h2>
+                    <i class="bi bi-file-earmark-text fs-1 text-primary opacity-25"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-12">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body p-4">
+                <h5 class="card-title fw-bold mb-3"><i class="bi bi-search text-primary me-2"></i>Smart Search</h5>
+                <form method="GET" action="{{ url_for('admin.dashboard') }}" class="d-flex gap-2">
+                    <input type="text" name="q" class="form-control form-control-lg" placeholder="Search by SKU, Product Name, or Content..." value="{{ request.args.get('q', '') }}" autofocus>
+                    <button type="submit" class="btn btn-primary btn-lg px-4">Search</button>
+                    {% if request.args.get('q') %}
+                        <a href="{{ url_for('admin.dashboard') }}" class="btn btn-outline-secondary btn-lg">Clear</a>
+                    {% endif %}
+                </form>
+            </div>
+        </div>
     </div>
 
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem;">
-        
-        <div class="card p-3 shadow-sm" onclick="window.location.href='{{ url_for('quotations.index') }}'" style="cursor: pointer; border-left: 5px solid #0d6efd;">
-            <div class="d-flex align-items-center gap-3 mb-2">
-                <i class="bi bi-file-earmark-text fs-2 text-primary"></i>
-                <h4 class="m-0 text-dark">Quotations</h4>
+    <div class="col-12">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white py-3">
+                <h6 class="mb-0 fw-bold">Recent Uploads</h6>
             </div>
-            <p class="text-muted m-0">Repository & Search</p>
-        </div>
-
-        <div class="card p-3 shadow-sm" onclick="window.location.href='{{ url_for('expenses.my_expenses') }}'" style="cursor: pointer; border-left: 5px solid #198754;">
-            <div class="d-flex align-items-center gap-3 mb-2">
-                <i class="bi bi-cash-stack fs-2 text-success"></i>
-                <h4 class="m-0 text-dark">Expenses</h4>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="bg-light">
+                        <tr>
+                            <th class="ps-4">File Name</th>
+                            <th>Type</th>
+                            <th>Uploaded By</th>
+                            <th>Date</th>
+                            <th class="text-end pe-4">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for f in files %}
+                        <tr>
+                            <td class="ps-4 fw-medium">{{ f.filename }}</td>
+                            <td><span class="badge bg-light text-dark border">{{ f.file_type }}</span></td>
+                            <td>{{ f.uploader.username if f.uploader else 'Unknown' }}</td>
+                            <td class="text-muted small">{{ f.upload_date.strftime('%Y-%m-%d') }}</td>
+                            <td class="text-end pe-4">
+                                <a href="{{ url_for('admin.view_file', file_id=f.id) }}" class="btn btn-sm btn-outline-primary">View</a>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="5" class="text-center py-5 text-muted">No files uploaded yet.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
             </div>
-            <p class="text-muted m-0">Claims & History</p>
         </div>
-
-        <div class="card p-3 shadow-sm" onclick="window.location.href='{{ url_for('attendance.my_attendance') }}'" style="cursor: pointer; border-left: 5px solid #6610f2;">
-            <div class="d-flex align-items-center gap-3 mb-2">
-                <i class="bi bi-clock fs-2 text-indigo" style="color: #6610f2;"></i>
-                <h4 class="m-0 text-dark">Attendance</h4>
-            </div>
-            <p class="text-muted m-0">Daily Check-in</p>
-        </div>
-        
-        <div class="card p-3 shadow-sm" onclick="window.location.href='{{ url_for('leave.leave_calendar') }}'" style="cursor: pointer; border-left: 5px solid #fd7e14;">
-            <div class="d-flex align-items-center gap-3 mb-2">
-                <i class="bi bi-calendar-event fs-2" style="color: #fd7e14;"></i>
-                <h4 class="m-0 text-dark">Leave</h4>
-            </div>
-            <p class="text-muted m-0">Calendar & Requests</p>
-        </div>
-
-        <div class="card p-3 shadow-sm" onclick="window.location.href='{{ url_for('todos.my_todos') }}'" style="cursor: pointer; border-left: 5px solid #dc3545;">
-            <div class="d-flex align-items-center gap-3 mb-2">
-                <i class="bi bi-check-square fs-2 text-danger"></i>
-                <h4 class="m-0 text-dark">To-Dos</h4>
-            </div>
-            <p class="text-muted m-0">Tasks & Priorities</p>
-        </div>
-
     </div>
 </div>
 {% endblock %}
