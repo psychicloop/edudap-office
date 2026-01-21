@@ -38,8 +38,10 @@ class Quotation(db.Model):
 
 class Expense(db.Model):
     id = db.Column(db.Integer, primary_key=True)
+    date = db.Column(db.Date, nullable=False)  # ADDED DATE
     amount = db.Column(db.Float, nullable=False)
     category = db.Column(db.String(50), nullable=False)
+    description = db.Column(db.String(200), nullable=True) # ADDED DESCRIPTION
     status = db.Column(db.String(20), default=ExpenseStatus.PENDING)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     user = db.relationship('User', backref='expenses')
@@ -47,11 +49,8 @@ class Expense(db.Model):
 class Attendance(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     date = db.Column(db.Date, nullable=False)
-    
-    # TIMESTAMP FIELDS
     in_time = db.Column(db.DateTime, nullable=True)
     out_time = db.Column(db.DateTime, nullable=True)
-    
     status = db.Column(db.String(20), default=AttendanceType.ABSENT)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     user = db.relationship('User', backref='attendance_records')
@@ -76,6 +75,7 @@ class LocationPing(db.Model):
 class Todo(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(200), nullable=False)
+    due_date = db.Column(db.DateTime, nullable=True) # ADDED ALARM/DUE DATE
     status = db.Column(db.String(20), default=TodoStatus.PENDING)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     user = db.relationship('User', backref='todos')
