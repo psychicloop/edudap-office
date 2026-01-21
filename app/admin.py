@@ -20,30 +20,65 @@ def allowed_file(filename):
 def dashboard():
     query = request.args.get('q')
     
+    # Base: Files the user is allowed to see
     if current_user.role == 'Admin':
-        base_query = Quotation.query
+        file_query = Quotation.query
     else:
-        base_query = Quotation.query.filter_by(user_id=current_user.id)
+        file_query = Quotation.query.filter_by(user_id=current_user.id)
 
+    search_results = []
+    
     if query:
         search_term = f"%{query}%"
-        # Search in File Metadata OR inside Product Data
-        base_query = base_query.outerjoin(ProductData).filter(
+        
+        # 1. Search Matching Files (Filename/Client)
+        files = file_query.filter(
             or_(
                 Quotation.filename.ilike(search_term),
-                Quotation.client_name.ilike(search_term),
-                ProductData.item_name.ilike(search_term),
-                ProductData.make.ilike(search_term),
-                ProductData.cat_no.ilike(search_term),
-                ProductData.reagent_kit.ilike(search_term)
+                Quotation.client_name.ilike(search_term)
             )
-        ).distinct()
+        ).all()
+        
+        # 2. Search Matching ITEMS (Inside the files)
+        # We join with Quotation to ensure permissions (User can only search their own items)
+        if current_user.role == 'Admin':
+            items = ProductData.query.join(Quotation).filter(
+                or_(
+                    ProductData.item_name.ilike(search_term),
+                    ProductData.make.ilike(search_term),
+                    ProductData.cat_no.ilike(search_term),
+                    ProductData.reagent_kit.ilike(search_term)
+                )
+            ).all()
+        else:
+            items = ProductData.query.join(Quotation).filter(
+                Quotation.user_id == current_user.id,
+                or_(
+                    ProductData.item_name.ilike(search_term),
+                    ProductData.make.ilike(search_term),
+                    ProductData.cat_no.ilike(search_term),
+                    ProductData.reagent_kit.ilike(search_term)
+                )
+            ).all()
+
+        # Combine results safely
+        search_results = {
+            'files': files,
+            'items': items
+        }
     
-    user_quotes = base_query.order_by(Quotation.uploaded_at.desc()).all()
+    else:
+        # Default view: Just show latest files
+        search_results = {
+            'files': file_query.order_by(Quotation.uploaded_at.desc()).limit(20).all(),
+            'items': []
+        }
+    
+    # Stats
     user_expenses = Expense.query.filter_by(user_id=current_user.id, status='Pending').all()
-    stats = {'quote_count': len(user_quotes), 'expense_total': sum(e.amount for e in user_expenses) if user_expenses else 0, 'role': current_user.role}
+    stats = {'quote_count': 0, 'expense_total': sum(e.amount for e in user_expenses) if user_expenses else 0, 'role': current_user.role}
     
-    return render_template('dashboard.html', stats=stats, quotes=user_quotes)
+    return render_template('dashboard.html', results=search_results, stats=stats)
 
 # --- UPLOAD (SMART PARSER) ---
 @admin_bp.route('/upload', methods=['GET', 'POST'])
@@ -58,7 +93,7 @@ def upload_file():
             full_path = os.path.join(path, fn)
             f.save(full_path)
             
-            # Create Quotation Record
+            # Create File Record
             new_quote = Quotation(
                 filename=fn, 
                 client_name=request.form.get('client_name'), 
@@ -68,27 +103,34 @@ def upload_file():
             db.session.add(new_quote)
             db.session.commit()
             
-            # SMART PARSE EXCEL
+            # SMART PARSE: Read Excel Columns
             if fn.endswith(('xlsx', 'xls')):
                 try:
                     df = pd.read_excel(full_path)
-                    df.columns = df.columns.str.lower().str.strip()
+                    df.columns = df.columns.astype(str).str.lower().str.strip()
+                    
                     for index, row in df.iterrows():
-                        def get_val(col_list):
-                            for col in col_list:
-                                if col in df.columns: return str(row[col])
-                            return None
+                        # Helper to fuzzy match column names
+                        def get_val(keywords):
+                            for col in df.columns:
+                                if any(k in col for k in keywords):
+                                    val = str(row[col])
+                                    return val if val != 'nan' else ''
+                            return ''
 
+                        # Capture the specific data you asked for
                         p_data = ProductData(
                             quotation_id=new_quote.id,
-                            item_name=get_val(['item', 'item name', 'items', 'description']),
-                            make=get_val(['make', 'brand']),
-                            cat_no=get_val(['cat no', 'cat. no.', 'catalog no', 'cat#']),
-                            reagent_kit=get_val(['reagent', 'kit', 'reagent/kit']),
-                            rate=get_val(['rate', 'price', 'unit price']),
-                            description=get_val(['description', 'specifications'])
+                            item_name=get_val(['item', 'desc', 'particular']),
+                            make=get_val(['make', 'brand', 'company']),
+                            cat_no=get_val(['cat', 'number', 'code']),
+                            reagent_kit=get_val(['reagent', 'kit']),
+                            rate=get_val(['rate', 'price', 'mrp', 'cost'])
                         )
-                        db.session.add(p_data)
+                        # Only save if it has meaningful data
+                        if p_data.item_name or p_data.cat_no:
+                            db.session.add(p_data)
+                            
                     db.session.commit()
                 except Exception as e:
                     print(f"Error parsing excel: {e}")
@@ -96,7 +138,7 @@ def upload_file():
             return redirect(url_for('admin.dashboard'))
     return render_template('upload.html')
 
-# --- ASSIGN TASKS ---
+# --- ASSIGNED TASKS (RENAMED 'Assign') ---
 @admin_bp.route('/assigned', methods=['GET', 'POST'])
 @login_required
 def assigned():
@@ -114,7 +156,6 @@ def assigned():
         if task:
             msg = request.form.get('message')
             status = request.form.get('status')
-            # Add new line to chat
             task.chat_history = (task.chat_history or "") + f"[{datetime.now().strftime('%d-%b %H:%M')}] {current_user.username}: {msg}\n"
             if status: task.status = status
             db.session.commit()
@@ -135,7 +176,7 @@ def admin_panel():
     stats = {'leaves': pending_leaves, 'expenses': pending_expenses, 'active_staff': active_staff}
     return render_template('admin_panel.html', stats=stats)
 
-# --- ATTENDANCE (GOOGLE MAPS DATA) ---
+# --- ATTENDANCE MONITOR (FIXED MAP) ---
 @admin_bp.route('/admin/attendance-monitor')
 @login_required
 def admin_attendance():
