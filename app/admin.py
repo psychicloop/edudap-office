@@ -55,7 +55,7 @@ def dashboard():
         if current_user.role != 'Admin':
             item_query = item_query.filter(Quotation.user_id == current_user.id)
             
-        search_results['product_matches'] = item_query.limit(50).all() # Limit 50 to prevent crash on huge results
+        search_results['product_matches'] = item_query.limit(50).all() 
     
     else:
         # No search? Just show latest uploads
@@ -67,7 +67,7 @@ def dashboard():
     
     return render_template('dashboard.html', results=search_results, stats=stats)
 
-# --- UPLOAD (THE AGGRESSIVE PARSER) ---
+# --- UPLOAD (THE UNIVERSAL "HEADER HUNTER" PARSER) ---
 @admin_bp.route('/upload', methods=['GET', 'POST'])
 @login_required
 def upload_file():
@@ -90,15 +90,37 @@ def upload_file():
             db.session.add(new_quote)
             db.session.commit()
             
-            # 2. EXTRACT DATA (The Smart Part)
+            # 2. EXTRACT DATA (Universal Logic)
             if fn.endswith(('xlsx', 'xls')):
                 try:
-                    # Read Excel
-                    df = pd.read_excel(full_path)
+                    # STEP A: Read without header to scan rows
+                    df_raw = pd.read_excel(full_path, header=None)
+                    
+                    header_row_index = 0
+                    found_header = False
+                    
+                    # STEP B: Hunt for the "Real" Header (Scan first 50 rows)
+                    # We look for a row that contains words like 'Description', 'Item', 'Rate', 'Cat'
+                    for i, row in df_raw.head(50).iterrows():
+                        # Convert row to a single lowercase string for easy checking
+                        row_str = " ".join([str(val).lower() for val in row.values])
+                        
+                        # Logic: If row has (Item OR Description) AND (Rate OR Price OR Amount), it's the header!
+                        has_item = any(x in row_str for x in ['item', 'description', 'particular', 'product'])
+                        has_rate = any(x in row_str for x in ['rate', 'price', 'amount', 'mrp', 'total'])
+                        
+                        if has_item and has_rate:
+                            header_row_index = i
+                            found_header = True
+                            break
+                    
+                    # STEP C: Re-read file with the correct header
+                    df = pd.read_excel(full_path, header=header_row_index)
+                    
                     # Clean Headers: lowercase, strip spaces
                     df.columns = df.columns.astype(str).str.lower().str.strip()
                     
-                    # Define Synonyms for Columns (This fixes the issue!)
+                    # Define Synonyms
                     col_map = {
                         'item_name': ['item', 'description', 'particular', 'product', 'name', 'desc'],
                         'make': ['make', 'brand', 'company', 'manufacturer', 'mfr'],
@@ -111,23 +133,21 @@ def upload_file():
                     def find_col(possible_names):
                         for candidate in possible_names:
                             for actual_col in df.columns:
-                                if candidate in actual_col: # Partial match (e.g., "Unit Price" matches "price")
+                                if candidate in actual_col: 
                                     return actual_col
                         return None
 
-                    # Iterate rows
+                    count = 0
                     for index, row in df.iterrows():
-                        # Extract using fuzzy column finding
                         i_name = str(row[find_col(col_map['item_name'])]) if find_col(col_map['item_name']) else None
                         i_make = str(row[find_col(col_map['make'])]) if find_col(col_map['make']) else None
                         i_cat = str(row[find_col(col_map['cat_no'])]) if find_col(col_map['cat_no']) else None
                         i_kit = str(row[find_col(col_map['reagent_kit'])]) if find_col(col_map['reagent_kit']) else None
                         i_rate = str(row[find_col(col_map['rate'])]) if find_col(col_map['rate']) else None
                         
-                        # Clean "nan" values
-                        def clean(val): return val if val and val.lower() != 'nan' else None
+                        def clean(val): return val if val and val.lower() != 'nan' and val.lower() != 'none' else None
                         
-                        # SAVE ONLY IF VALID DATA EXISTS
+                        # SAVE ONLY VALID ROWS (Must have Item Name or Cat No)
                         if clean(i_name) or clean(i_cat):
                             db.session.add(ProductData(
                                 quotation_id=new_quote.id,
@@ -136,15 +156,19 @@ def upload_file():
                                 cat_no=clean(i_cat),
                                 reagent_kit=clean(i_kit),
                                 rate=clean(i_rate),
-                                description=clean(i_name) # Store item name as desc for broader search
+                                description=clean(i_name)
                             ))
+                            count += 1
                     
                     db.session.commit()
-                    flash(f'File uploaded and {len(df)} items indexed for search!', 'success')
+                    if count > 0:
+                        flash(f'Success! Found table at Row {header_row_index + 1} and indexed {count} items.', 'success')
+                    else:
+                        flash('File uploaded, but no data rows found. Check column names.', 'warning')
                     
                 except Exception as e:
                     print(f"Excel Parse Error: {e}")
-                    flash('File uploaded, but could not read data rows. Check format.', 'warning')
+                    flash('File uploaded, but structure was too complex to read automatically.', 'warning')
 
             return redirect(url_for('admin.dashboard'))
     return render_template('upload.html')
