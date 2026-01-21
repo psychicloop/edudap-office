@@ -5,7 +5,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 from .models import Quotation, Expense, Attendance, HolidayRequest, Todo, LocationPing, AssignedTask, User, ProductData, db
-from sqlalchemy import or_, extract
+from sqlalchemy import or_
 
 admin_bp = Blueprint('admin', __name__)
 
@@ -38,7 +38,7 @@ def dashboard():
             )
         ).order_by(Quotation.uploaded_at.desc()).all()
         
-        # 2. Search Items (The Smart Part)
+        # 2. Search Items (Checks Item Name, Make, Cat No, Desc)
         item_query = ProductData.query.join(Quotation).filter(
             or_(
                 ProductData.item_name.ilike(search_term),
@@ -62,7 +62,7 @@ def dashboard():
     
     return render_template('dashboard.html', results=search_results, stats=stats)
 
-# --- UPLOAD (SCORE-BASED HEADER HUNTER) ---
+# --- UPLOAD (ANCHOR PARSER) ---
 @admin_bp.route('/upload', methods=['GET', 'POST'])
 @login_required
 def upload_file():
@@ -84,82 +84,101 @@ def upload_file():
             db.session.add(new_quote)
             db.session.commit()
             
-            # SMART EXCEL INDEXING
+            # --- THE ANCHOR PARSER ---
             if fn.endswith(('xlsx', 'xls', 'csv')):
                 try:
                     # 1. Read Raw
                     if fn.endswith('.csv'): df_raw = pd.read_csv(full_path, header=None)
                     else: df_raw = pd.read_excel(full_path, header=None)
                     
-                    # 2. SCORE ROWS to find Header (Matches your file format)
-                    keywords = ['items', 'description', 'make', 'cat', 'qty', 'rate', 'price', 'unit', 's.no']
-                    best_header_idx = 0
-                    max_matches = 0
+                    header_row_index = -1
                     
-                    # Scan first 50 rows
-                    for i, row in df_raw.head(50).iterrows():
+                    # 2. HUNT FOR 'S.No' (The Anchor)
+                    for i, row in df_raw.head(60).iterrows():
                         row_str = " ".join([str(val).lower() for val in row.values])
-                        matches = sum(1 for k in keywords if k in row_str)
-                        if matches > max_matches:
-                            max_matches = matches
-                            best_header_idx = i
-                    
-                    # 3. Re-read with Winner Header
-                    if fn.endswith('.csv'): df = pd.read_csv(full_path, header=best_header_idx)
-                    else: df = pd.read_excel(full_path, header=best_header_idx)
                         
-                    df.columns = df.columns.astype(str).str.lower().str.strip()
+                        # Priority 1: Look for S.No / Sr.No (Specific to your file)
+                        if 's.no' in row_str or 'sr.no' in row_str or 'sl.no' in row_str:
+                            header_row_index = i
+                            break
+                        
+                        # Priority 2: Fallback to "Items" + "Rate" if S.No is missing
+                        if 'items' in row_str and 'rate' in row_str:
+                            header_row_index = i
+                            break
                     
-                    # 4. Map Your Columns
-                    col_map = {
-                        'item_name': ['items', 'description', 'particular', 'product'],
-                        'make': ['make', 'brand', 'company'],
-                        'cat_no': ['cat', 'code', 'part', 'ref'],
-                        'reagent_kit': ['unit', 'pack', 'size', 'reagent'],
-                        'rate': ['rate', 'price', 'mrp', 'amount']
-                    }
+                    if header_row_index != -1:
+                        # 3. Load Data from Anchor Row
+                        if fn.endswith('.csv'): df = pd.read_csv(full_path, header=header_row_index)
+                        else: df = pd.read_excel(full_path, header=header_row_index)
+                        
+                        df.columns = df.columns.astype(str).str.lower().str.strip()
+                        
+                        # 4. Map Columns (Exact match for your file)
+                        col_map = {
+                            'item_name': ['items', 'description', 'particulars', 'product name'],
+                            'make': ['make', 'brand', 'company'],
+                            'cat_no': ['cat no', 'cat.no', 'catalogue no', 'code'],
+                            'reagent_kit': ['unit', 'pack', 'size'], 
+                            'rate': ['rate', 'price', 'unit price']
+                        }
 
-                    def find_col(possible_names):
-                        for candidate in possible_names:
-                            for actual_col in df.columns:
-                                if candidate in actual_col: return actual_col
-                        return None
+                        def find_col(possible_names):
+                            for candidate in possible_names:
+                                for actual_col in df.columns:
+                                    if candidate in actual_col: return actual_col
+                            return None
 
-                    count = 0
-                    for index, row in df.iterrows():
-                        i_name = str(row[find_col(col_map['item_name'])]) if find_col(col_map['item_name']) else None
-                        i_make = str(row[find_col(col_map['make'])]) if find_col(col_map['make']) else None
-                        i_cat = str(row[find_col(col_map['cat_no'])]) if find_col(col_map['cat_no']) else None
-                        i_kit = str(row[find_col(col_map['reagent_kit'])]) if find_col(col_map['reagent_kit']) else None
-                        i_rate = str(row[find_col(col_map['rate'])]) if find_col(col_map['rate']) else None
+                        count = 0
+                        for index, row in df.iterrows():
+                            # Get Raw Values
+                            i_name = str(row[find_col(col_map['item_name'])]) if find_col(col_map['item_name']) else None
+                            i_make = str(row[find_col(col_map['make'])]) if find_col(col_map['make']) else None
+                            i_cat = str(row[find_col(col_map['cat_no'])]) if find_col(col_map['cat_no']) else None
+                            i_kit = str(row[find_col(col_map['reagent_kit'])]) if find_col(col_map['reagent_kit']) else None
+                            i_rate = str(row[find_col(col_map['rate'])]) if find_col(col_map['rate']) else None
+                            
+                            # Clean Data
+                            def clean(val): 
+                                if not val: return None
+                                val = str(val).strip()
+                                if val.lower() in ['nan', 'none', '', '0', 'total', 'tax', 'amount']: return None
+                                return val
+                            
+                            # Save Valid Rows
+                            if clean(i_name) and (clean(i_rate) or clean(i_cat)):
+                                # Filter out total/tax rows that might sneak in
+                                if 'total' not in i_name.lower():
+                                    db.session.add(ProductData(
+                                        quotation_id=new_quote.id,
+                                        item_name=clean(i_name),
+                                        make=clean(i_make),
+                                        cat_no=clean(i_cat),
+                                        reagent_kit=clean(i_kit),
+                                        rate=clean(i_rate),
+                                        description=clean(i_name)
+                                    ))
+                                    count += 1
                         
-                        def clean(val): return val if val and str(val).lower() not in ['nan', 'none', '', '0', 'total', 'tax'] else None
-                        
-                        # Save if valid item found
-                        if clean(i_name) and (clean(i_rate) or clean(i_cat)):
-                            if 'total' not in str(i_name).lower(): # Exclude total rows
-                                db.session.add(ProductData(
-                                    quotation_id=new_quote.id,
-                                    item_name=clean(i_name),
-                                    make=clean(i_make),
-                                    cat_no=clean(i_cat),
-                                    reagent_kit=clean(i_kit),
-                                    rate=clean(i_rate),
-                                    description=clean(i_name)
-                                ))
-                                count += 1
-                    
-                    db.session.commit()
-                    flash(f'Success! Indexed {count} items found starting at Row {best_header_idx+1}.', 'success')
-                    
+                        db.session.commit()
+                        if count > 0:
+                            flash(f'Success! Found table at Row {header_row_index+1} ("S.No") and indexed {count} items.', 'success')
+                        else:
+                            flash(f'Header found at Row {header_row_index+1}, but no valid data rows extracted.', 'warning')
+                    else:
+                        flash('Could not find "S.No" or "Items" row in the first 60 rows.', 'warning')
+
                 except Exception as e:
-                    print(f"File Error: {e}")
-                    flash(f'File uploaded but error parsing: {str(e)}', 'warning')
+                    print(f"Index Error: {e}")
+                    flash('File uploaded, but indexer failed.', 'warning')
+            
+            elif fn.endswith('pdf'):
+                flash('PDF uploaded. Note: Search indexing is only available for Excel files.', 'info')
 
             return redirect(url_for('admin.dashboard'))
     return render_template('upload.html')
 
-# --- VIEW FILE (RAW MODE - PRESERVES TOP CONTENT) ---
+# --- VIEW FILE (RAW MODE - SHOWS EVERYTHING) ---
 @admin_bp.route('/view_file/<int:file_id>')
 @login_required
 def view_file(file_id):
@@ -167,11 +186,10 @@ def view_file(file_id):
     path = os.path.join(current_app.root_path, 'static', 'uploads', q.filename)
     if q.filename.endswith(('xlsx', 'xls', 'csv')):
         try:
-            # Read Raw (header=None) so the view shows the WHOLE file including address
+            # Always read raw (header=None) to show full file including address
             if q.filename.endswith('.csv'): df = pd.read_csv(path, header=None)
             else: df = pd.read_excel(path, header=None)
-            
-            # Simple column names for view
+            # Create generic headers A, B, C...
             cols = [chr(65+i) if i < 26 else f"Col{i+1}" for i in range(len(df.columns))]
             return render_template('excel_view.html', filename=q.filename, columns=cols, data=df.fillna('').values.tolist())
         except: pass
@@ -183,7 +201,7 @@ def download_file(file_id):
     q = Quotation.query.get_or_404(file_id)
     return send_from_directory(os.path.join(current_app.root_path, 'static', 'uploads'), q.filename, as_attachment=True)
 
-# --- ASSIGNED ---
+# --- ASSIGN ---
 @admin_bp.route('/assigned', methods=['GET', 'POST'])
 @login_required
 def assigned():
@@ -215,11 +233,7 @@ def assigned():
 @login_required
 def admin_panel():
     if current_user.role != 'Admin': return redirect(url_for('admin.dashboard'))
-    stats = {
-        'leaves': HolidayRequest.query.filter_by(status='Pending').count(),
-        'expenses': Expense.query.filter_by(status='Pending').count(),
-        'active_staff': Attendance.query.filter_by(date=date.today(), out_time=None).count()
-    }
+    stats = {'leaves': HolidayRequest.query.filter_by(status='Pending').count(), 'expenses': Expense.query.filter_by(status='Pending').count(), 'active_staff': Attendance.query.filter_by(date=date.today(), out_time=None).count()}
     return render_template('admin_panel.html', stats=stats)
 
 # --- ADMIN ATTENDANCE ---
@@ -246,7 +260,7 @@ def export_attendance():
     data = [{'Employee': r.user.username, 'Date': r.date, 'In': r.in_time, 'Out': r.out_time, 'Hours': round((r.out_time - r.in_time).total_seconds()/3600 if r.out_time else 0, 2)} for r in records]
     return Response(pd.DataFrame(data).to_csv(index=False), mimetype="text/csv", headers={"Content-disposition": "attachment; filename=attendance_report.csv"})
 
-# --- EXPENSES ---
+# --- EXPENSES & OTHERS ---
 @admin_bp.route('/admin/expenses-manage')
 @login_required
 def admin_expenses():
@@ -363,3 +377,8 @@ def approve_expense(id):
 def reject_expense(id):
     if current_user.role == 'Admin': r=Expense.query.get(id); r.status='Rejected'; db.session.commit()
     return redirect(url_for('admin.admin_expenses'))
+@admin_bp.route('/download/<int:file_id>')
+@login_required
+def download_file(file_id):
+    q = Quotation.query.get_or_404(file_id)
+    return send_from_directory(os.path.join(current_app.root_path, 'static', 'uploads'), q.filename, as_attachment=True)
