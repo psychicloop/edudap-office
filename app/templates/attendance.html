@@ -17,12 +17,17 @@
                     <div class="mb-4">
                         <span class="badge bg-secondary px-3 py-2">Status: Not Started</span>
                     </div>
-                    <form method="POST">
+                    
+                    <form method="POST" id="punchInForm">
                         <input type="hidden" name="action" value="punch_in">
-                        <button type="submit" class="btn btn-primary px-5 py-2 fw-bold" 
+                        <input type="hidden" name="latitude" id="lat">
+                        <input type="hidden" name="longitude" id="lng">
+                        
+                        <button type="button" onclick="getLocationAndSubmit()" class="btn btn-primary px-5 py-2 fw-bold" 
                                 style="background-color: var(--edudap-green); border: none;">
-                            PUNCH IN
+                            <i class="bi bi-geo-alt-fill me-2"></i> PUNCH IN
                         </button>
+                        <p id="geoMsg" class="text-muted small mt-2 fst-italic"></p>
                     </form>
 
                 {% elif record.in_time and not record.out_time %}
@@ -84,8 +89,28 @@
                 </table>
             </div>
         </div>
-
     </div>
 </div>
+
+<script>
+function getLocationAndSubmit() {
+    var msg = document.getElementById("geoMsg");
+    msg.innerHTML = "Locating you...";
+    
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(function(position) {
+            document.getElementById("lat").value = position.coords.latitude;
+            document.getElementById("lng").value = position.coords.longitude;
+            msg.innerHTML = "Location found. Punching in...";
+            document.getElementById("punchInForm").submit();
+        }, function(error) {
+            msg.innerHTML = "Error: Location required to Punch In.";
+            msg.classList.add("text-danger");
+        });
+    } else {
+        msg.innerHTML = "Geolocation is not supported by this browser.";
+    }
+}
+</script>
 
 {% endblock %}
