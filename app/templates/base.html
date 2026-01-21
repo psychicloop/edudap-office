@@ -103,9 +103,8 @@
                     {% endif %}
                     
                     <li class="nav-item"><a class="nav-link" href="{{ url_for('admin.leave') }}">Leave</a></li>
-                    
-                    <li class="nav-item"><a class="nav-link" href="javascript:void(0);">Expenses</a></li>
-                    <li class="nav-item"><a class="nav-link" href="javascript:void(0);">To-do List</a></li>
+                    <li class="nav-item"><a class="nav-link" href="{{ url_for('admin.expenses') }}">Expenses</a></li>
+                    <li class="nav-item"><a class="nav-link" href="{{ url_for('admin.todo') }}">To-do List</a></li>
                     
                     {% if current_user.role == 'Admin' %}
                     <li class="nav-item"><a class="nav-link text-danger" href="javascript:void(0);">Admin Panel</a></li>
