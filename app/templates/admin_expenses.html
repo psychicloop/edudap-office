@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h4 class="fw-bold text-dark">Expense Management</h4>
+    <a href="{{ url_for('admin.admin_panel') }}" class="btn btn-outline-secondary btn-sm">Back to Panel</a>
+</div>
+
+<ul class="nav nav-tabs mb-3" id="expTabs">
+    <li class="nav-item">
+        <button class="nav-link active fw-bold" data-bs-toggle="tab" data-bs-target="#pending">Current Requests</button>
+    </li>
+    <li class="nav-item">
+        <button class="nav-link fw-bold text-muted" data-bs-toggle="tab" data-bs-target="#history">History</button>
+    </li>
+</ul>
+
+<div class="tab-content">
+    <div class="tab-pane fade show active" id="pending">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body p-0">
+                <table class="table mb-0 align-middle">
+                    <thead class="bg-light">
+                        <tr>
+                            <th class="ps-4">Employee</th>
+                            <th>Details</th>
+                            <th>Bill</th>
+                            <th class="text-end pe-4">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for exp in pending %}
+                        <tr>
+                            <td class="ps-4 fw-bold">{{ exp.user.username }}</td>
+                            <td>
+                                <div class="fw-bold">₹{{ exp.amount }} ({{ exp.category }})</div>
+                                <div class="text-muted small">{{ exp.description }}</div>
+                                <div class="text-muted x-small">{{ exp.date.strftime('%d %b') }}</div>
+                            </td>
+                            <td>
+                                {% if exp.bill_image %}
+                                <a href="{{ url_for('static', filename='uploads/' + exp.bill_image) }}" target="_blank" class="btn btn-sm btn-outline-primary">
+                                    <i class="bi bi-image"></i> View Bill
+                                </a>
+                                {% else %}
+                                <span class="text-muted small">No Attach</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end pe-4">
+                                <a href="{{ url_for('admin.approve_expense', id=exp.id) }}" class="btn btn-success btn-sm"><i class="bi bi-check-lg"></i></a>
+                                <a href="{{ url_for('admin.reject_expense', id=exp.id) }}" class="btn btn-danger btn-sm"><i class="bi bi-x-lg"></i></a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <div class="tab-pane fade" id="history">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body p-0">
+                <table class="table mb-0 align-middle text-muted">
+                    <thead class="bg-light">
+                        <tr>
+                            <th class="ps-4">Employee</th>
+                            <th>Amount</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for exp in history %}
+                        <tr>
+                            <td class="ps-4">{{ exp.user.username }}</td>
+                            <td>₹{{ exp.amount }}</td>
+                            <td>
+                                <span class="badge {{ 'bg-success' if exp.status == 'Approved' else 'bg-danger' }}">{{ exp.status }}</span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
