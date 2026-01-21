@@ -1,184 +1,196 @@
-/* EduDAP PROFESSIONAL THEME */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+/* =========================================
+   EduDAP Office — Premium Theme (v1.1 - Hardened)
+   ========================================= */
 
 :root {
-    /* Brand Colors */
-    --brand-blue: #0F4C81;    /* Deep Navy */
-    --brand-green: #558B5E;   /* Sage Green */
-    --brand-teal: #7ACCC8;    /* Accent Teal */
-    
-    /* UI Colors */
-    --bg-body: #f8f9fa;       /* Very light gray (Excel-like bg) */
-    --bg-card: #ffffff;
-    --text-main: #1f2937;     /* Sharp dark gray */
-    --text-muted: #6b7280;
-    --border-color: #e5e7eb;  /* Light grid lines */
-    
-    /* Spacing & Borders */
-    --radius-card: 8px;       /* Tighter corners for pro feel */
-    --radius-input: 4px;
-    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  /* --- Brand Palette --- */
+  --edudap-blue: #0B3C78;       /* Deep Science Blue */
+  --edudap-navy: #002B55;       /* Darker Navy Structure */
+  --edudap-cyan: #2EA8AC;       /* Interactive / Links */
+  --edudap-aqua: #7ED3DD;       /* Highlights */
+  --edudap-green: #4D7A52;      /* Success / Nature */
+  --edudap-danger: #D9534F;     /* Soft Red */
+  --edudap-warning: #FFC107;    /* Warning */
+
+  /* --- Neutrals & Surfaces --- */
+  --edudap-bg: #F8F9FA;         
+  --edudap-surface: #FFFFFF;    
+  --edudap-text: #2C3E50;       
+  --edudap-text-soft: #6c757d;  
+  --edudap-border: rgba(0,0,0,0.08);
+
+  /* --- Shadows & Depth --- */
+  --edudap-shadow-sm: 0 2px 4px rgba(0,0,0,0.05);
+  --edudap-shadow-md: 0 8px 16px rgba(0,0,0,0.08);
+  
+  /* --- Radii --- */
+  --edudap-radius: 10px;
+  
+  /* --- The "Lens" Gradient (Sidebar) --- */
+  --edudap-lens-gradient: linear-gradient(160deg, #0B3C78 0%, #002B55 100%);
+  
+  /* --- Glassmorphism --- */
+  --edudap-glass-bg: rgba(255, 255, 255, 0.85);
+  --edudap-glass-blur: blur(12px);
+  --edudap-glass-border: rgba(255, 255, 255, 0.5);
+  
+  /* --- Animation --- */
+  --lift-transition: transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.2s ease;
 }
 
 body {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    background-color: var(--bg-body);
-    color: var(--text-main);
-    margin: 0;
-    line-height: 1.5;
-    -webkit-font-smoothing: antialiased; /* Makes text look sharper */
+  font-family: 'Inter', sans-serif;
+  background-color: var(--edudap-bg);
+  color: var(--edudap-text);
+  overflow-x: hidden;
 }
 
-/* --- HEADER --- */
-header.app-header {
-    background: var(--bg-card);
-    padding: 0.75rem 1.5rem;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    border-bottom: 3px solid var(--brand-blue); /* Strong brand line */
-    box-shadow: var(--shadow-sm);
-    position: sticky;
-    top: 0;
-    z-index: 50;
+h1, h2, h3, h4, h5, .navbar-brand {
+  font-family: 'Poppins', sans-serif;
+  color: var(--edudap-blue);
+  font-weight: 600;
 }
 
-header.app-header h1 {
-    font-size: 1.25rem;
-    font-weight: 700;
-    color: var(--brand-blue);
-    margin-left: 0.75rem;
-    letter-spacing: -0.01em;
+/* --- Accessibility: Skip Link --- */
+.skip-link {
+  position: absolute; left: -999px; top: 8px;
+  background: #fff; color: #000; padding: 8px 12px; border-radius: 6px;
+  box-shadow: var(--edudap-shadow-md); z-index: 2000;
+  text-decoration: none; font-weight: bold;
+}
+.skip-link:focus { left: 12px; outline: 3px solid var(--edudap-cyan); }
+
+/* --- Accessibility: Focus Rings --- */
+:focus-visible {
+  outline: 3px solid rgba(46,168,172,0.55);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+.btn:focus-visible, .form-control:focus-visible {
+  outline: 3px solid rgba(46,168,172,0.6);
+  box-shadow: none;
 }
 
-header.app-header img.logo {
-    height: 36px;
-    width: auto;
+/* --- Layout Grid --- */
+.app-shell {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  grid-template-rows: 64px 1fr;
+  grid-template-areas: 
+    "sidebar topbar"
+    "sidebar main";
+  min-height: 100vh;
 }
 
-/* --- LAYOUT --- */
-main.container {
-    max-width: 1200px;
-    margin: 2rem auto;
-    padding: 0 1rem;
+/* --- Sidebar --- */
+.sidebar {
+  grid-area: sidebar;
+  background: var(--edudap-lens-gradient);
+  color: white;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  padding: 1.5rem 1rem;
+  box-shadow: 4px 0 10px rgba(0,0,0,0.05);
+  z-index: 100;
+  transition: transform 0.3s ease;
 }
 
-/* --- CARDS (Containers) --- */
+.sidebar .brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: white;
+  text-decoration: none;
+  margin-bottom: 2rem;
+  padding-left: 0.5rem;
+}
+
+.nav-rail { display: flex; flex-direction: column; gap: 0.5rem; }
+
+.nav-item-link {
+  display: flex; align-items: center; gap: 12px;
+  padding: 0.75rem 1rem;
+  color: rgba(255,255,255,0.8);
+  text-decoration: none;
+  border-radius: var(--edudap-radius);
+  transition: all 0.2s ease;
+  font-weight: 500;
+}
+
+.nav-item-link:hover, .nav-item-link.active {
+  background: rgba(255,255,255,0.15);
+  color: white;
+  transform: translateX(4px);
+}
+
+/* --- Topbar --- */
+.topbar {
+  grid-area: topbar;
+  background: var(--edudap-glass-bg);
+  backdrop-filter: var(--edudap-glass-blur);
+  -webkit-backdrop-filter: var(--edudap-glass-blur);
+  border-bottom: 1px solid var(--edudap-glass-border);
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 2rem;
+  position: sticky; top: 0; z-index: 90;
+}
+
+/* --- Main Content --- */
+.main-content {
+  grid-area: main;
+  padding: 2rem;
+  width: 100%;
+}
+
+/* --- Components --- */
 .card {
-    background: var(--bg-card);
-    border-radius: var(--radius-card);
-    border: 1px solid var(--border-color);
-    box-shadow: var(--shadow-sm);
-    padding: 1.5rem;
-    margin-bottom: 1.5rem;
+  border: 1px solid var(--edudap-border);
+  border-radius: var(--edudap-radius);
+  box-shadow: var(--edudap-shadow-sm);
+  background: var(--edudap-surface);
+  transition: var(--lift-transition);
+}
+.card:hover { transform: translateY(-4px); box-shadow: var(--edudap-shadow-md); }
+
+.btn {
+  border-radius: 8px; font-weight: 500;
+  transition: var(--lift-transition);
+}
+.btn:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+
+.btn-primary { background-color: var(--edudap-blue); border-color: var(--edudap-blue); }
+.btn-primary:hover { background-color: #083266; border-color: #083266; }
+
+/* --- Mobile Responsiveness --- */
+@media (max-width: 992px) {
+  .app-shell {
+    grid-template-columns: 1fr;
+    grid-template-rows: 64px 1fr;
+    grid-template-areas: "topbar" "main";
+  }
+  .sidebar {
+    position: fixed; inset: 64px 0 0 0;
+    height: calc(100vh - 64px);
+    transform: translateX(-100%); /* Hidden by default */
+  }
+  .sidebar.open { transform: translateX(0); }
+  .topbar { padding: 0 1rem; }
+  .flash-stack { width: 90%; right: 5%; }
 }
 
-.card h2 {
-    margin-top: 0;
-    font-size: 1.1rem;
-    font-weight: 600;
-    color: var(--brand-blue);
-    border-bottom: 2px solid #f3f4f6;
-    padding-bottom: 0.75rem;
-    margin-bottom: 1rem;
-    text-transform: uppercase;
-    letter-spacing: 0.02em;
+/* --- Reduced Motion --- */
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; transform: none !important; }
+  .topbar { backdrop-filter: none; }
 }
 
-/* --- EXCEL-STYLE TABLES --- */
-.table-responsive {
-    overflow-x: auto;
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-input);
-}
-
-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 0.9rem; /* Slightly smaller for data density */
-    background: white;
-}
-
-thead {
-    background-color: #f3f4f6; /* Light gray header like Excel */
-    border-bottom: 2px solid #d1d5db;
-}
-
-th {
-    padding: 0.75rem;
-    text-align: left;
-    font-weight: 600;
-    color: var(--text-main);
-    text-transform: uppercase;
-    font-size: 0.75rem;
-    letter-spacing: 0.05em;
-}
-
-td {
-    padding: 0.6rem 0.75rem;
-    border-bottom: 1px solid var(--border-color); /* Grid lines */
-    vertical-align: middle;
-}
-
-/* Monospace numbers for money/data alignment */
-td.amount, td.number {
-    font-family: 'Consolas', 'Monaco', monospace;
-    font-weight: 600;
-    color: var(--brand-blue);
-}
-
-tr:hover td {
-    background-color: #f9fafb; /* Row highlight on hover */
-}
-
-/* --- FORMS --- */
-label {
-    display: block;
-    margin-bottom: 0.35rem;
-    font-size: 0.85rem;
-    font-weight: 500;
-    color: var(--text-muted);
-}
-
-input, select, textarea {
-    width: 100%;
-    padding: 0.6rem;
-    border: 1px solid #d1d5db;
-    border-radius: var(--radius-input);
-    font-size: 0.95rem;
-    transition: border-color 0.15s;
-    background: #fff;
-}
-
-input:focus, select:focus {
-    outline: none;
-    border-color: var(--brand-blue);
-    box-shadow: 0 0 0 3px rgba(15, 76, 129, 0.1);
-}
-
-/* --- BUTTONS --- */
-.btn-primary, button[type="submit"] {
-    background-color: var(--brand-blue);
-    color: white;
-    padding: 0.6rem 1.25rem;
-    border-radius: var(--radius-input);
-    border: none;
-    font-weight: 500;
-    font-size: 0.9rem;
-    cursor: pointer;
-    transition: background-color 0.2s;
-}
-
-.btn-primary:hover, button[type="submit"]:hover {
-    background-color: #0a365c;
-}
-
-/* --- CALENDAR (Generic Styles) --- */
-.fc-toolbar-title { font-size: 1.2rem !important; color: var(--brand-blue); }
-.fc-button-primary { background-color: var(--brand-blue) !important; border: none !important; }
-.fc-day-today { background-color: rgba(122, 204, 200, 0.1) !important; } /* Light Teal for today */
-
-/* --- UTILITIES --- */
-.empty { text-align: center; padding: 2rem; color: var(--text-muted); font-style: italic; }
-.text-right { text-align: right; }
+/* --- Flash Messages --- */
+.flash-stack { position: fixed; top: 80px; right: 2rem; z-index: 1050; width: 350px; }
+.alert { border-radius: var(--edudap-radius); box-shadow: var(--edudap-shadow-md); border: none; }
+.alert-success { background-color: #d1e7dd; color: #0f5132; }
+.alert-danger { background-color: #f8d7da; color: #842029; }
