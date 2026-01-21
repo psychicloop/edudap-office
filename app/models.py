@@ -18,6 +18,9 @@ class TodoStatus:
 class TodoPriority:
     LOW, MEDIUM, HIGH = 'Low', 'Medium', 'High'
 
+class TaskStatus:
+    ASSIGNED, IN_PROGRESS, COMPLETED = 'Assigned', 'In Progress', 'Completed'
+
 # --- MODELS ---
 class Role(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -45,7 +48,7 @@ class Expense(db.Model):
     amount = db.Column(db.Float, nullable=False)
     category = db.Column(db.String(50), nullable=False)
     description = db.Column(db.String(200), nullable=True)
-    bill_image = db.Column(db.String(200), nullable=True)  # <--- NEW PHOTO FIELD
+    bill_image = db.Column(db.String(200), nullable=True)
     status = db.Column(db.String(20), default=ExpenseStatus.PENDING)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     user = db.relationship('User', backref='expenses')
@@ -84,3 +87,18 @@ class Todo(db.Model):
     status = db.Column(db.String(20), default=TodoStatus.PENDING)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     user = db.relationship('User', backref='todos')
+
+# --- NEW: ASSIGNED TASKS (Chat & Timeline) ---
+class AssignedTask(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(200), nullable=False)
+    description = db.Column(db.Text, nullable=True)
+    assigned_to_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    assigned_by_id = db.Column(db.Integer, nullable=False) # Admin ID
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    deadline = db.Column(db.DateTime, nullable=True)
+    status = db.Column(db.String(20), default=TaskStatus.ASSIGNED)
+    # Store simple chat history as text block for now to keep it single-table
+    chat_history = db.Column(db.Text, default="") 
+    
+    assigned_to = db.relationship('User', foreign_keys=[assigned_to_id], backref='assigned_tasks')
