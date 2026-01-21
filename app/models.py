@@ -33,6 +33,7 @@ class User(UserMixin, db.Model):
     role = db.Column(db.String(50), default='Employee')
     password_hash = db.Column(db.String(200), nullable=False)
 
+# UPDATED QUOTATION + NEW PRODUCT DATA (SMART SEARCH)
 class Quotation(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     filename = db.Column(db.String(200), nullable=False)
@@ -41,6 +42,17 @@ class Quotation(db.Model):
     uploaded_at = db.Column(db.DateTime, default=datetime.utcnow)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     user = db.relationship('User', backref='quotations')
+    items = db.relationship('ProductData', backref='quotation', cascade="all, delete-orphan")
+
+class ProductData(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    quotation_id = db.Column(db.Integer, db.ForeignKey('quotation.id'), nullable=False)
+    item_name = db.Column(db.String(500), nullable=True)
+    make = db.Column(db.String(200), nullable=True)
+    cat_no = db.Column(db.String(100), nullable=True)
+    reagent_kit = db.Column(db.String(200), nullable=True)
+    rate = db.Column(db.String(100), nullable=True)
+    description = db.Column(db.Text, nullable=True)
 
 class Expense(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -88,17 +100,15 @@ class Todo(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     user = db.relationship('User', backref='todos')
 
-# --- NEW: ASSIGNED TASKS (Chat & Timeline) ---
 class AssignedTask(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(200), nullable=False)
     description = db.Column(db.Text, nullable=True)
     assigned_to_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    assigned_by_id = db.Column(db.Integer, nullable=False) # Admin ID
+    assigned_by_id = db.Column(db.Integer, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     deadline = db.Column(db.DateTime, nullable=True)
     status = db.Column(db.String(20), default=TaskStatus.ASSIGNED)
-    # Store simple chat history as text block for now to keep it single-table
     chat_history = db.Column(db.Text, default="") 
     
     assigned_to = db.relationship('User', foreign_keys=[assigned_to_id], backref='assigned_tasks')
