@@ -13,7 +13,7 @@
     </div>
 </div>
 
-{% if results.items %}
+{% if results.product_matches %}
 <div class="card border-0 shadow-sm mb-4">
     <div class="card-header bg-white py-3"><h5 class="mb-0 fw-bold" style="color: var(--edudap-blue);">Product Matches found inside Excel</h5></div>
     <div class="card-body p-0">
@@ -21,7 +21,7 @@
             <table class="table table-hover align-middle mb-0 small">
                 <thead class="bg-light"><tr><th>Item / Description</th><th>Make</th><th>Cat No</th><th>Reagent/Kit</th><th>Rate</th><th>Source File</th></tr></thead>
                 <tbody>
-                    {% for item in results.items %}
+                    {% for item in results.product_matches %}
                     <tr>
                         <td class="fw-bold">{{ item.item_name or '-' }}</td>
                         <td>{{ item.make or '-' }}</td>
