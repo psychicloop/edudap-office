@@ -30,7 +30,7 @@ def dashboard():
     if query:
         search_term = f"%{query}%"
         
-        # Files
+        # 1. Search Files
         search_results['files'] = file_query.filter(
             or_(
                 Quotation.filename.ilike(search_term),
@@ -38,7 +38,7 @@ def dashboard():
             )
         ).order_by(Quotation.uploaded_at.desc()).all()
         
-        # Items
+        # 2. Search Items (The Smart Part)
         item_query = ProductData.query.join(Quotation).filter(
             or_(
                 ProductData.item_name.ilike(search_term),
@@ -62,7 +62,7 @@ def dashboard():
     
     return render_template('dashboard.html', results=search_results, stats=stats)
 
-# --- UPLOAD (SMART "SCORING" PARSER) ---
+# --- UPLOAD (SCORE-BASED HEADER HUNTER) ---
 @admin_bp.route('/upload', methods=['GET', 'POST'])
 @login_required
 def upload_file():
@@ -84,18 +84,19 @@ def upload_file():
             db.session.add(new_quote)
             db.session.commit()
             
+            # SMART EXCEL INDEXING
             if fn.endswith(('xlsx', 'xls', 'csv')):
                 try:
                     # 1. Read Raw
                     if fn.endswith('.csv'): df_raw = pd.read_csv(full_path, header=None)
                     else: df_raw = pd.read_excel(full_path, header=None)
                     
-                    # 2. SCORE ROWS to find Header
-                    # We look for rows containing key words. The row with most matches wins.
-                    keywords = ['item', 'description', 'make', 'brand', 'cat', 'qty', 'rate', 'price', 'amount', 'total', 's.no']
+                    # 2. SCORE ROWS to find Header (Matches your file format)
+                    keywords = ['items', 'description', 'make', 'cat', 'qty', 'rate', 'price', 'unit', 's.no']
                     best_header_idx = 0
                     max_matches = 0
                     
+                    # Scan first 50 rows
                     for i, row in df_raw.head(50).iterrows():
                         row_str = " ".join([str(val).lower() for val in row.values])
                         matches = sum(1 for k in keywords if k in row_str)
@@ -103,17 +104,17 @@ def upload_file():
                             max_matches = matches
                             best_header_idx = i
                     
-                    # 3. Re-read with Correct Header
+                    # 3. Re-read with Winner Header
                     if fn.endswith('.csv'): df = pd.read_csv(full_path, header=best_header_idx)
                     else: df = pd.read_excel(full_path, header=best_header_idx)
                         
                     df.columns = df.columns.astype(str).str.lower().str.strip()
                     
-                    # 4. Map Columns
+                    # 4. Map Your Columns
                     col_map = {
                         'item_name': ['items', 'description', 'particular', 'product'],
                         'make': ['make', 'brand', 'company'],
-                        'cat_no': ['cat', 'code', 'part'],
+                        'cat_no': ['cat', 'code', 'part', 'ref'],
                         'reagent_kit': ['unit', 'pack', 'size', 'reagent'],
                         'rate': ['rate', 'price', 'mrp', 'amount']
                     }
@@ -132,23 +133,24 @@ def upload_file():
                         i_kit = str(row[find_col(col_map['reagent_kit'])]) if find_col(col_map['reagent_kit']) else None
                         i_rate = str(row[find_col(col_map['rate'])]) if find_col(col_map['rate']) else None
                         
-                        def clean(val): return val if val and str(val).lower() not in ['nan', 'none', ''] else None
+                        def clean(val): return val if val and str(val).lower() not in ['nan', 'none', '', '0', 'total', 'tax'] else None
                         
-                        # Save if valid
+                        # Save if valid item found
                         if clean(i_name) and (clean(i_rate) or clean(i_cat)):
-                            db.session.add(ProductData(
-                                quotation_id=new_quote.id,
-                                item_name=clean(i_name),
-                                make=clean(i_make),
-                                cat_no=clean(i_cat),
-                                reagent_kit=clean(i_kit),
-                                rate=clean(i_rate),
-                                description=clean(i_name)
-                            ))
-                            count += 1
+                            if 'total' not in str(i_name).lower(): # Exclude total rows
+                                db.session.add(ProductData(
+                                    quotation_id=new_quote.id,
+                                    item_name=clean(i_name),
+                                    make=clean(i_make),
+                                    cat_no=clean(i_cat),
+                                    reagent_kit=clean(i_kit),
+                                    rate=clean(i_rate),
+                                    description=clean(i_name)
+                                ))
+                                count += 1
                     
                     db.session.commit()
-                    flash(f'Success! Found table at Row {best_header_idx+1} and indexed {count} items.', 'success')
+                    flash(f'Success! Indexed {count} items found starting at Row {best_header_idx+1}.', 'success')
                     
                 except Exception as e:
                     print(f"File Error: {e}")
@@ -157,37 +159,22 @@ def upload_file():
             return redirect(url_for('admin.dashboard'))
     return render_template('upload.html')
 
-# --- VIEW FILE (NOW SHOWS CLEAN TABLE) ---
+# --- VIEW FILE (RAW MODE - PRESERVES TOP CONTENT) ---
 @admin_bp.route('/view_file/<int:file_id>')
 @login_required
 def view_file(file_id):
     q = Quotation.query.get_or_404(file_id)
     path = os.path.join(current_app.root_path, 'static', 'uploads', q.filename)
-    
     if q.filename.endswith(('xlsx', 'xls', 'csv')):
         try:
-            # USE SAME SMART LOGIC TO DISPLAY CLEAN DATA
-            if q.filename.endswith('.csv'): df_raw = pd.read_csv(path, header=None)
-            else: df_raw = pd.read_excel(path, header=None)
+            # Read Raw (header=None) so the view shows the WHOLE file including address
+            if q.filename.endswith('.csv'): df = pd.read_csv(path, header=None)
+            else: df = pd.read_excel(path, header=None)
             
-            best_header_idx = 0
-            max_matches = 0
-            keywords = ['item', 'description', 'make', 'brand', 'cat', 'qty', 'rate', 'price']
-            
-            for i, row in df_raw.head(50).iterrows():
-                row_str = " ".join([str(val).lower() for val in row.values])
-                matches = sum(1 for k in keywords if k in row_str)
-                if matches > max_matches:
-                    max_matches = matches
-                    best_header_idx = i
-            
-            # Read clean
-            if q.filename.endswith('.csv'): df = pd.read_csv(path, header=best_header_idx)
-            else: df = pd.read_excel(path, header=best_header_idx)
-            
-            return render_template('excel_view.html', filename=q.filename, columns=df.columns.tolist(), data=df.fillna('').values.tolist())
-        except:
-            pass
+            # Simple column names for view
+            cols = [chr(65+i) if i < 26 else f"Col{i+1}" for i in range(len(df.columns))]
+            return render_template('excel_view.html', filename=q.filename, columns=cols, data=df.fillna('').values.tolist())
+        except: pass
     return redirect(url_for('admin.download_file', file_id=file_id))
 
 @admin_bp.route('/download/<int:file_id>')
@@ -245,7 +232,6 @@ def admin_attendance():
     for record in active_records:
         ping = LocationPing.query.filter_by(user_id=record.user_id).order_by(LocationPing.timestamp.desc()).first()
         if ping: live_map_data.append({'username': record.user.username, 'in_time': record.in_time, 'lat': ping.latitude, 'lng': ping.longitude})
-    
     records = Attendance.query.order_by(Attendance.date.desc()).all()
     attendance_data = []
     for r in records:
@@ -260,7 +246,7 @@ def export_attendance():
     data = [{'Employee': r.user.username, 'Date': r.date, 'In': r.in_time, 'Out': r.out_time, 'Hours': round((r.out_time - r.in_time).total_seconds()/3600 if r.out_time else 0, 2)} for r in records]
     return Response(pd.DataFrame(data).to_csv(index=False), mimetype="text/csv", headers={"Content-disposition": "attachment; filename=attendance_report.csv"})
 
-# --- EXPENSES & OTHERS ---
+# --- EXPENSES ---
 @admin_bp.route('/admin/expenses-manage')
 @login_required
 def admin_expenses():
