@@ -45,7 +45,7 @@ class Expense(db.Model):
     amount = db.Column(db.Float, nullable=False)
     category = db.Column(db.String(50), nullable=False)
     description = db.Column(db.String(200), nullable=True)
-    bill_image = db.Column(db.String(200), nullable=True)  # ADDED PHOTO ATTACHMENT
+    bill_image = db.Column(db.String(200), nullable=True)  # <--- NEW PHOTO FIELD
     status = db.Column(db.String(20), default=ExpenseStatus.PENDING)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     user = db.relationship('User', backref='expenses')
