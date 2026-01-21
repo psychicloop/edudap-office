@@ -14,73 +14,60 @@ ALLOWED_EXTENSIONS = {'pdf', 'xlsx', 'xls', 'jpg', 'jpeg', 'png'}
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-# --- DASHBOARD (SMART SEARCH) ---
+# --- DASHBOARD (THE SMART SEARCH ENGINE) ---
 @admin_bp.route('/dashboard')
 @login_required
 def dashboard():
     query = request.args.get('q')
     
-    # Base: Files the user is allowed to see
+    # 1. Permission Logic
     if current_user.role == 'Admin':
         file_query = Quotation.query
     else:
         file_query = Quotation.query.filter_by(user_id=current_user.id)
 
-    search_results = []
+    search_results = {'files': [], 'product_matches': []}
     
     if query:
         search_term = f"%{query}%"
         
-        # 1. Search Matching Files (Filename/Client)
-        files = file_query.filter(
+        # A. Find Files (Filename or Client Name)
+        search_results['files'] = file_query.filter(
             or_(
                 Quotation.filename.ilike(search_term),
                 Quotation.client_name.ilike(search_term)
             )
-        ).all()
+        ).order_by(Quotation.uploaded_at.desc()).all()
         
-        # 2. Search Matching ITEMS (Inside the files)
-        # We join with Quotation to ensure permissions
-        if current_user.role == 'Admin':
-            items = ProductData.query.join(Quotation).filter(
-                or_(
-                    ProductData.item_name.ilike(search_term),
-                    ProductData.make.ilike(search_term),
-                    ProductData.cat_no.ilike(search_term),
-                    ProductData.reagent_kit.ilike(search_term)
-                )
-            ).all()
-        else:
-            items = ProductData.query.join(Quotation).filter(
-                Quotation.user_id == current_user.id,
-                or_(
-                    ProductData.item_name.ilike(search_term),
-                    ProductData.make.ilike(search_term),
-                    ProductData.cat_no.ilike(search_term),
-                    ProductData.reagent_kit.ilike(search_term)
-                )
-            ).all()
-
-        # Combine results safely (RENAMED KEY TO AVOID CONFLICT)
-        search_results = {
-            'files': files,
-            'product_matches': items 
-        }
+        # B. Find SPECIFIC ITEMS (The "Awesome" Search)
+        # It looks inside the ProductData table for Descriptions, Makes, Cat Nos, etc.
+        item_query = ProductData.query.join(Quotation).filter(
+            or_(
+                ProductData.item_name.ilike(search_term),
+                ProductData.make.ilike(search_term),
+                ProductData.cat_no.ilike(search_term),
+                ProductData.reagent_kit.ilike(search_term),
+                ProductData.description.ilike(search_term)
+            )
+        )
+        
+        # Apply permissions to Item Search too
+        if current_user.role != 'Admin':
+            item_query = item_query.filter(Quotation.user_id == current_user.id)
+            
+        search_results['product_matches'] = item_query.limit(50).all() # Limit 50 to prevent crash on huge results
     
     else:
-        # Default view: Just show latest files
-        search_results = {
-            'files': file_query.order_by(Quotation.uploaded_at.desc()).limit(20).all(),
-            'product_matches': []
-        }
+        # No search? Just show latest uploads
+        search_results['files'] = file_query.order_by(Quotation.uploaded_at.desc()).limit(20).all()
     
-    # Stats
+    # Stats Calculation
     user_expenses = Expense.query.filter_by(user_id=current_user.id, status='Pending').all()
-    stats = {'quote_count': 0, 'expense_total': sum(e.amount for e in user_expenses) if user_expenses else 0, 'role': current_user.role}
+    stats = {'quote_count': len(search_results['files']), 'expense_total': sum(e.amount for e in user_expenses) if user_expenses else 0, 'role': current_user.role}
     
     return render_template('dashboard.html', results=search_results, stats=stats)
 
-# --- UPLOAD (SMART PARSER) ---
+# --- UPLOAD (THE AGGRESSIVE PARSER) ---
 @admin_bp.route('/upload', methods=['GET', 'POST'])
 @login_required
 def upload_file():
@@ -93,7 +80,7 @@ def upload_file():
             full_path = os.path.join(path, fn)
             f.save(full_path)
             
-            # Create File Record
+            # 1. Save File Record
             new_quote = Quotation(
                 filename=fn, 
                 client_name=request.form.get('client_name'), 
@@ -103,42 +90,66 @@ def upload_file():
             db.session.add(new_quote)
             db.session.commit()
             
-            # SMART PARSE: Read Excel Columns
+            # 2. EXTRACT DATA (The Smart Part)
             if fn.endswith(('xlsx', 'xls')):
                 try:
+                    # Read Excel
                     df = pd.read_excel(full_path)
+                    # Clean Headers: lowercase, strip spaces
                     df.columns = df.columns.astype(str).str.lower().str.strip()
                     
-                    for index, row in df.iterrows():
-                        # Helper to fuzzy match column names
-                        def get_val(keywords):
-                            for col in df.columns:
-                                if any(k in col for k in keywords):
-                                    val = str(row[col])
-                                    return val if val != 'nan' else ''
-                            return ''
+                    # Define Synonyms for Columns (This fixes the issue!)
+                    col_map = {
+                        'item_name': ['item', 'description', 'particular', 'product', 'name', 'desc'],
+                        'make': ['make', 'brand', 'company', 'manufacturer', 'mfr'],
+                        'cat_no': ['cat', 'cat no', 'catalog', 'catalogue', 'code', 'part no', 'ref'],
+                        'reagent_kit': ['reagent', 'kit', 'pack', 'size', 'packing'],
+                        'rate': ['rate', 'price', 'mrp', 'amount', 'unit price', 'cost']
+                    }
 
-                        # Capture the specific data you asked for
-                        p_data = ProductData(
-                            quotation_id=new_quote.id,
-                            item_name=get_val(['item', 'desc', 'particular']),
-                            make=get_val(['make', 'brand', 'company']),
-                            cat_no=get_val(['cat', 'number', 'code']),
-                            reagent_kit=get_val(['reagent', 'kit']),
-                            rate=get_val(['rate', 'price', 'mrp', 'cost'])
-                        )
-                        # Only save if it has meaningful data
-                        if p_data.item_name or p_data.cat_no:
-                            db.session.add(p_data)
-                            
+                    # Function to find the best matching column
+                    def find_col(possible_names):
+                        for candidate in possible_names:
+                            for actual_col in df.columns:
+                                if candidate in actual_col: # Partial match (e.g., "Unit Price" matches "price")
+                                    return actual_col
+                        return None
+
+                    # Iterate rows
+                    for index, row in df.iterrows():
+                        # Extract using fuzzy column finding
+                        i_name = str(row[find_col(col_map['item_name'])]) if find_col(col_map['item_name']) else None
+                        i_make = str(row[find_col(col_map['make'])]) if find_col(col_map['make']) else None
+                        i_cat = str(row[find_col(col_map['cat_no'])]) if find_col(col_map['cat_no']) else None
+                        i_kit = str(row[find_col(col_map['reagent_kit'])]) if find_col(col_map['reagent_kit']) else None
+                        i_rate = str(row[find_col(col_map['rate'])]) if find_col(col_map['rate']) else None
+                        
+                        # Clean "nan" values
+                        def clean(val): return val if val and val.lower() != 'nan' else None
+                        
+                        # SAVE ONLY IF VALID DATA EXISTS
+                        if clean(i_name) or clean(i_cat):
+                            db.session.add(ProductData(
+                                quotation_id=new_quote.id,
+                                item_name=clean(i_name),
+                                make=clean(i_make),
+                                cat_no=clean(i_cat),
+                                reagent_kit=clean(i_kit),
+                                rate=clean(i_rate),
+                                description=clean(i_name) # Store item name as desc for broader search
+                            ))
+                    
                     db.session.commit()
+                    flash(f'File uploaded and {len(df)} items indexed for search!', 'success')
+                    
                 except Exception as e:
-                    print(f"Error parsing excel: {e}")
+                    print(f"Excel Parse Error: {e}")
+                    flash('File uploaded, but could not read data rows. Check format.', 'warning')
 
             return redirect(url_for('admin.dashboard'))
     return render_template('upload.html')
 
-# --- ASSIGNED TASKS (Renamed 'Assign') ---
+# --- ASSIGN TASKS ---
 @admin_bp.route('/assigned', methods=['GET', 'POST'])
 @login_required
 def assigned():
@@ -176,7 +187,7 @@ def admin_panel():
     stats = {'leaves': pending_leaves, 'expenses': pending_expenses, 'active_staff': active_staff}
     return render_template('admin_panel.html', stats=stats)
 
-# --- ATTENDANCE MONITOR ---
+# --- ADMIN ATTENDANCE ---
 @admin_bp.route('/admin/attendance-monitor')
 @login_required
 def admin_attendance():
@@ -331,8 +342,4 @@ def download_file(file_id):
 @login_required
 def view_file(file_id):
     q = Quotation.query.get_or_404(file_id)
-    path = os.path.join(current_app.root_path, 'static', 'uploads', q.filename)
-    if q.filename.endswith(('xlsx', 'xls')):
-        try: return render_template('excel_view.html', filename=q.filename, columns=pd.read_excel(path).columns.tolist(), data=pd.read_excel(path).fillna('').values.tolist())
-        except: pass
-    return redirect(url_for('admin.download_file', file_id=file_id))
+    path = os.path.join(current_app.root_path, 'static
