@@ -83,7 +83,6 @@ def leave():
         start = request.form.get('start_date')
         end = request.form.get('end_date')
         reason = request.form.get('reason')
-        
         if start and end and reason:
             start_dt = datetime.strptime(start, '%Y-%m-%d').date()
             end_dt = datetime.strptime(end, '%Y-%m-%d').date()
@@ -98,7 +97,7 @@ def leave():
     history = HolidayRequest.query.filter_by(user_id=current_user.id).order_by(HolidayRequest.start_date.desc()).all()
     return render_template('leave.html', history=history)
 
-# --- EXPENSES (NEW) ---
+# --- EXPENSES ---
 @admin_bp.route('/expenses', methods=['GET', 'POST'])
 @login_required
 def expenses():
@@ -107,7 +106,6 @@ def expenses():
         category = request.form.get('category')
         amount = request.form.get('amount')
         desc = request.form.get('description')
-        
         if exp_date and category and amount:
             date_obj = datetime.strptime(exp_date, '%Y-%m-%d').date()
             new_exp = Expense(date=date_obj, category=category, amount=float(amount), description=desc, status='Pending', user_id=current_user.id)
@@ -119,7 +117,7 @@ def expenses():
     history = Expense.query.filter_by(user_id=current_user.id).order_by(Expense.date.desc()).all()
     return render_template('expenses.html', history=history)
 
-# --- TODO LIST (NEW) ---
+# --- TODO LIST (UPDATED) ---
 @admin_bp.route('/todo', methods=['GET', 'POST'])
 @login_required
 def todo():
@@ -128,14 +126,15 @@ def todo():
         
         if action == 'add':
             title = request.form.get('title')
-            due_str = request.form.get('due_date') # Includes Time
+            due_str = request.form.get('due_date') 
+            priority = request.form.get('priority') # Get Priority
             
             due_dt = None
             if due_str:
                 due_dt = datetime.strptime(due_str, '%Y-%m-%dT%H:%M')
             
             if title:
-                new_task = Todo(title=title, due_date=due_dt, status='Pending', user_id=current_user.id)
+                new_task = Todo(title=title, due_date=due_dt, priority=priority, status='Pending', user_id=current_user.id)
                 db.session.add(new_task)
                 db.session.commit()
                 flash('Task added.', 'success')
@@ -158,8 +157,14 @@ def todo():
 
         return redirect(url_for('admin.todo'))
 
-    tasks = Todo.query.filter_by(user_id=current_user.id).order_by(Todo.status.asc(), Todo.due_date.asc()).all()
-    return render_template('todo.html', tasks=tasks, now=datetime.now())
+    # Sort: High Priority First, then Date
+    tasks = Todo.query.filter_by(user_id=current_user.id).order_by(Todo.due_date.asc()).all()
+    
+    # Split for Tabs
+    pending_tasks = [t for t in tasks if t.status == 'Pending']
+    completed_tasks = [t for t in tasks if t.status == 'Completed']
+    
+    return render_template('todo.html', pending_tasks=pending_tasks, completed_tasks=completed_tasks, now=datetime.now())
 
 # --- UPLOAD, DOWNLOAD, VIEW (SAFE HOUSE) ---
 @admin_bp.route('/upload', methods=['GET', 'POST'])
