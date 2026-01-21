@@ -45,6 +45,7 @@ class Expense(db.Model):
     amount = db.Column(db.Float, nullable=False)
     category = db.Column(db.String(50), nullable=False)
     description = db.Column(db.String(200), nullable=True)
+    bill_image = db.Column(db.String(200), nullable=True)  # ADDED PHOTO ATTACHMENT
     status = db.Column(db.String(20), default=ExpenseStatus.PENDING)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     user = db.relationship('User', backref='expenses')
@@ -79,7 +80,7 @@ class Todo(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(200), nullable=False)
     due_date = db.Column(db.DateTime, nullable=True)
-    priority = db.Column(db.String(20), default=TodoPriority.MEDIUM) # ADDED PRIORITY
+    priority = db.Column(db.String(20), default=TodoPriority.MEDIUM)
     status = db.Column(db.String(20), default=TodoStatus.PENDING)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     user = db.relationship('User', backref='todos')
