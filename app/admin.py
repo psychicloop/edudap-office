@@ -4,7 +4,7 @@ from datetime import datetime, date
 from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app, send_from_directory
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
-from .models import Quotation, Expense, Attendance, db
+from .models import Quotation, Expense, Attendance, HolidayRequest, db
 from sqlalchemy import or_
 
 admin_bp = Blueprint('admin', __name__)
@@ -74,6 +74,38 @@ def attendance():
 
     history = Attendance.query.filter_by(user_id=current_user.id).order_by(Attendance.date.desc()).limit(10).all()
     return render_template('attendance.html', record=record, history=history, today=today)
+
+# --- LEAVE (NEW MODULE) ---
+@admin_bp.route('/leave', methods=['GET', 'POST'])
+@login_required
+def leave():
+    if request.method == 'POST':
+        start = request.form.get('start_date')
+        end = request.form.get('end_date')
+        reason = request.form.get('reason')
+        
+        if start and end and reason:
+            # Convert string dates to python date objects
+            start_dt = datetime.strptime(start, '%Y-%m-%d').date()
+            end_dt = datetime.strptime(end, '%Y-%m-%d').date()
+            
+            new_req = HolidayRequest(
+                start_date=start_dt, 
+                end_date=end_dt, 
+                reason=reason, 
+                status='Pending',
+                user_id=current_user.id
+            )
+            db.session.add(new_req)
+            db.session.commit()
+            flash('Leave request submitted successfully.', 'success')
+            return redirect(url_for('admin.leave'))
+        else:
+            flash('Please fill in all fields.', 'danger')
+
+    # Get Leave History
+    history = HolidayRequest.query.filter_by(user_id=current_user.id).order_by(HolidayRequest.start_date.desc()).all()
+    return render_template('leave.html', history=history)
 
 # --- UPLOAD & FILES ---
 @admin_bp.route('/upload', methods=['GET', 'POST'])
