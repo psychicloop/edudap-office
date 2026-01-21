@@ -342,4 +342,8 @@ def download_file(file_id):
 @login_required
 def view_file(file_id):
     q = Quotation.query.get_or_404(file_id)
-    path = os.path.join(current_app.root_path, 'static
+    path = os.path.join(current_app.root_path, 'static', 'uploads', q.filename)
+    if q.filename.endswith(('xlsx', 'xls')):
+        try: return render_template('excel_view.html', filename=q.filename, columns=pd.read_excel(path).columns.tolist(), data=pd.read_excel(path).fillna('').values.tolist())
+        except: pass
+    return redirect(url_for('admin.download_file', file_id=file_id))
