@@ -1,47 +1,87 @@
 {% extends "base.html" %}
-
 {% block content %}
-<div class="container mt-4">
-    <div class="row">
-        <div class="col-md-4">
-            <div class="card p-4 shadow-sm border-0 mb-4">
-                <h5 class="text-primary mb-3"><i class="bi bi-send-plus"></i> Request Leave</h5>
-                <form action="{{ url_for('leave.request_leave') }}" method="POST">
-                    <div class="mb-3">
-                        <label class="form-label small text-muted">Start Date</label>
-                        <input type="date" name="start_date" class="form-control" required>
+
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-header bg-white py-3 border-bottom-0">
+                <h5 class="fw-bold mb-0" style="color: var(--edudap-blue);">
+                    <i class="bi bi-calendar-plus me-2"></i>Apply for Leave
+                </h5>
+            </div>
+            <div class="card-body p-4">
+                <form method="POST">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label text-muted small fw-bold text-uppercase">From Date</label>
+                            <input type="date" name="start_date" class="form-control" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label text-muted small fw-bold text-uppercase">To Date</label>
+                            <input type="date" name="end_date" class="form-control" required>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label text-muted small fw-bold text-uppercase">Reason for Leave</label>
+                            <textarea name="reason" class="form-control" rows="2" placeholder="e.g. Sick Leave, Family Event..." required></textarea>
+                        </div>
+                        <div class="col-12 text-center mt-4">
+                            <button type="submit" class="btn btn-primary px-5 py-2 fw-bold" 
+                                    style="background-color: var(--edudap-green); border: none;">
+                                SUBMIT REQUEST
+                            </button>
+                        </div>
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label small text-muted">End Date</label>
-                        <input type="date" name="end_date" class="form-control" required>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label small text-muted">Reason</label>
-                        <textarea name="reason" class="form-control" rows="2" placeholder="Sick leave, etc." required></textarea>
-                    </div>
-                    <button type="submit" class="btn btn-primary w-100">Submit</button>
                 </form>
             </div>
         </div>
 
-        <div class="col-md-8">
-            <div class="card p-3 shadow-sm border-0">
-                <h5 class="mb-3">Team Calendar</h5>
-                <div id="calendar"></div>
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-light py-2">
+                <small class="fw-bold text-uppercase text-muted">My Leave History</small>
+            </div>
+            <div class="card-body p-0">
+                <table class="table table-hover mb-0 align-middle small">
+                    <thead class="bg-white text-muted">
+                        <tr>
+                            <th class="ps-4">Dates</th>
+                            <th>Reason</th>
+                            <th class="text-end pe-4">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if history %}
+                            {% for req in history %}
+                            <tr>
+                                <td class="ps-4">
+                                    <div class="fw-bold text-dark">{{ req.start_date.strftime('%d %b') }} - {{ req.end_date.strftime('%d %b %Y') }}</div>
+                                    <div class="text-muted" style="font-size: 0.85rem;">
+                                        {{ (req.end_date - req.start_date).days + 1 }} Days
+                                    </div>
+                                </td>
+                                <td>{{ req.reason }}</td>
+                                <td class="text-end pe-4">
+                                    {% if req.status == 'Approved' %}
+                                        <span class="badge bg-success bg-opacity-10 text-success border border-success">Approved</span>
+                                    {% elif req.status == 'Rejected' %}
+                                        <span class="badge bg-danger bg-opacity-10 text-danger border border-danger">Rejected</span>
+                                    {% else %}
+                                        <span class="badge bg-warning bg-opacity-10 text-warning border border-warning">Pending</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="3" class="text-center py-4 text-muted">No leave requests found.</td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
             </div>
         </div>
+
     </div>
 </div>
 
-<script>
-    document.addEventListener('DOMContentLoaded', function() {
-        var calendarEl = document.getElementById('calendar');
-        var calendar = new FullCalendar.Calendar(calendarEl, {
-            initialView: 'dayGridMonth',
-            height: '600px',
-            events: '{{ url_for("leave.get_events") }}'
-        });
-        calendar.render();
-    });
-</script>
 {% endblock %}
