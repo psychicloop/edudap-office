@@ -42,19 +42,19 @@ class Quotation(db.Model):
     uploaded_at = db.Column(db.DateTime, default=datetime.utcnow)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     user = db.relationship('User', backref='quotations')
-    # Link to the granular items inside the file
     items = db.relationship('ProductData', backref='quotation', cascade="all, delete-orphan")
 
 class ProductData(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     quotation_id = db.Column(db.Integer, db.ForeignKey('quotation.id'), nullable=False)
-    # The specific fields you requested
-    item_name = db.Column(db.String(500), nullable=True) # Items/Description
-    make = db.Column(db.String(200), nullable=True)      # Make
-    cat_no = db.Column(db.String(100), nullable=True)    # Cat No
-    reagent_kit = db.Column(db.String(200), nullable=True) # Reagent/Kit
-    rate = db.Column(db.String(100), nullable=True)      # Rate
-    
+    item_name = db.Column(db.String(500), nullable=True)
+    make = db.Column(db.String(200), nullable=True)
+    cat_no = db.Column(db.String(100), nullable=True)
+    reagent_kit = db.Column(db.String(200), nullable=True)
+    rate = db.Column(db.String(100), nullable=True)
+    # THIS WAS MISSING - ADDED NOW
+    description = db.Column(db.Text, nullable=True)
+
 class Expense(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     date = db.Column(db.Date, nullable=False)
