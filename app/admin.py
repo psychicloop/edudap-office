@@ -40,7 +40,7 @@ def dashboard():
         ).all()
         
         # 2. Search Matching ITEMS (Inside the files)
-        # We join with Quotation to ensure permissions (User can only search their own items)
+        # We join with Quotation to ensure permissions
         if current_user.role == 'Admin':
             items = ProductData.query.join(Quotation).filter(
                 or_(
@@ -61,17 +61,17 @@ def dashboard():
                 )
             ).all()
 
-        # Combine results safely
+        # Combine results safely (RENAMED KEY TO AVOID CONFLICT)
         search_results = {
             'files': files,
-            'items': items
+            'product_matches': items 
         }
     
     else:
         # Default view: Just show latest files
         search_results = {
             'files': file_query.order_by(Quotation.uploaded_at.desc()).limit(20).all(),
-            'items': []
+            'product_matches': []
         }
     
     # Stats
@@ -138,7 +138,7 @@ def upload_file():
             return redirect(url_for('admin.dashboard'))
     return render_template('upload.html')
 
-# --- ASSIGNED TASKS (RENAMED 'Assign') ---
+# --- ASSIGNED TASKS (Renamed 'Assign') ---
 @admin_bp.route('/assigned', methods=['GET', 'POST'])
 @login_required
 def assigned():
@@ -176,7 +176,7 @@ def admin_panel():
     stats = {'leaves': pending_leaves, 'expenses': pending_expenses, 'active_staff': active_staff}
     return render_template('admin_panel.html', stats=stats)
 
-# --- ATTENDANCE MONITOR (FIXED MAP) ---
+# --- ATTENDANCE MONITOR ---
 @admin_bp.route('/admin/attendance-monitor')
 @login_required
 def admin_attendance():
