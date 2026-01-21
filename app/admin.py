@@ -14,13 +14,11 @@ ALLOWED_EXTENSIONS = {'pdf', 'xlsx', 'xls', 'jpg', 'jpeg', 'png'}
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-# --- DASHBOARD (FIXED SEARCH LOGIC) ---
+# --- DASHBOARD ---
 @admin_bp.route('/dashboard')
 @login_required
 def dashboard():
     query = request.args.get('q')
-    
-    # LOGIC 2: Admin sees ALL. Employee sees OWN.
     if current_user.role == 'Admin':
         sql_query = Quotation.query
     else:
@@ -31,98 +29,64 @@ def dashboard():
         sql_query = sql_query.filter(or_(Quotation.filename.ilike(search), Quotation.client_name.ilike(search), Quotation.product_details.ilike(search)))
     
     user_quotes = sql_query.order_by(Quotation.uploaded_at.desc()).all()
-    
-    # Stats logic
     user_expenses = Expense.query.filter_by(user_id=current_user.id, status='Pending').all()
     stats = {'quote_count': len(user_quotes), 'expense_total': sum(e.amount for e in user_expenses) if user_expenses else 0, 'role': current_user.role}
-    
     return render_template('dashboard.html', stats=stats, quotes=user_quotes)
 
-# --- ASSIGNED TASKS (NEW FEATURE) ---
+# --- ASSIGNED TASKS ---
 @admin_bp.route('/assigned', methods=['GET', 'POST'])
 @login_required
 def assigned():
-    # Admin Assigns Task
     if request.method == 'POST' and 'assign_task' in request.form:
         if current_user.role != 'Admin': return redirect(url_for('admin.dashboard'))
-        title = request.form.get('title')
-        desc = request.form.get('description')
-        emp_id = request.form.get('employee_id')
-        deadline = request.form.get('deadline')
-        
+        title, desc, emp_id, deadline = request.form.get('title'), request.form.get('description'), request.form.get('employee_id'), request.form.get('deadline')
         if title and emp_id:
-            dead_dt = datetime.strptime(deadline, '%Y-%m-%dT%H:%M') if deadline else None
-            task = AssignedTask(title=title, description=desc, assigned_to_id=emp_id, assigned_by_id=current_user.id, deadline=dead_dt)
-            db.session.add(task)
+            db.session.add(AssignedTask(title=title, description=desc, assigned_to_id=emp_id, assigned_by_id=current_user.id, deadline=datetime.strptime(deadline, '%Y-%m-%dT%H:%M') if deadline else None))
             db.session.commit()
-            flash('Task Assigned Successfully', 'success')
+            flash('Task Assigned', 'success')
             return redirect(url_for('admin.assigned'))
 
-    # Chat / Status Update
     if request.method == 'POST' and 'update_chat' in request.form:
-        task_id = request.form.get('task_id')
-        message = request.form.get('message')
-        status = request.form.get('status')
-        
-        task = AssignedTask.query.get(task_id)
+        task = AssignedTask.query.get(request.form.get('task_id'))
         if task:
-            # Append Chat
-            timestamp = datetime.now().strftime("%d-%b %H:%M")
-            sender = "Admin" if current_user.role == 'Admin' else current_user.username
-            new_chat = f"[{timestamp}] {sender}: {message}\n"
-            task.chat_history = (task.chat_history or "") + new_chat
-            
+            msg = request.form.get('message')
+            status = request.form.get('status')
+            task.chat_history = (task.chat_history or "") + f"[{datetime.now().strftime('%d-%b %H:%M')}] {current_user.username}: {msg}\n"
             if status: task.status = status
             db.session.commit()
             return redirect(url_for('admin.assigned'))
 
-    # DATA LOADING
     employees = User.query.filter_by(role='Employee').all() if current_user.role == 'Admin' else []
-    
-    if current_user.role == 'Admin':
-        tasks = AssignedTask.query.order_by(AssignedTask.created_at.desc()).all()
-    else:
-        tasks = AssignedTask.query.filter_by(assigned_to_id=current_user.id).order_by(AssignedTask.created_at.desc()).all()
-        
-    return render_template('assigned.html', tasks=tasks, employees=employees, now=datetime.now())
+    tasks = AssignedTask.query.order_by(AssignedTask.created_at.desc()).all() if current_user.role == 'Admin' else AssignedTask.query.filter_by(assigned_to_id=current_user.id).order_by(AssignedTask.created_at.desc()).all()
+    return render_template('assigned.html', tasks=tasks, employees=employees)
 
 # --- ADMIN PANEL ---
 @admin_bp.route('/admin-panel')
 @login_required
 def admin_panel():
     if current_user.role != 'Admin': return redirect(url_for('admin.dashboard'))
-    
     pending_leaves = HolidayRequest.query.filter_by(status='Pending').count()
     pending_expenses = Expense.query.filter_by(status='Pending').count()
-    today = date.today()
-    # Logic 4: Only count people punched in AND NOT punched out
-    active_staff = Attendance.query.filter_by(date=today, out_time=None).count()
-    
+    active_staff = Attendance.query.filter_by(date=date.today(), out_time=None).count()
     stats = {'leaves': pending_leaves, 'expenses': pending_expenses, 'active_staff': active_staff}
     return render_template('admin_panel.html', stats=stats)
 
-# --- ATTENDANCE MONITOR & EXPORT ---
+# --- ATTENDANCE MONITOR ---
 @admin_bp.route('/admin/attendance-monitor')
 @login_required
 def admin_attendance():
     if current_user.role != 'Admin': return redirect(url_for('admin.dashboard'))
-    today = date.today()
-    
-    # MAP: Only currently active (No Out Time)
-    active_records = Attendance.query.filter_by(date=today, out_time=None).all()
+    active_records = Attendance.query.filter_by(date=date.today(), out_time=None).all()
     live_map_data = []
     for record in active_records:
         ping = LocationPing.query.filter_by(user_id=record.user_id).order_by(LocationPing.timestamp.desc()).first()
-        if ping:
-            live_map_data.append({'username': record.user.username, 'in_time': record.in_time, 'lat': ping.latitude, 'lng': ping.longitude})
-
+        if ping: live_map_data.append({'username': record.user.username, 'in_time': record.in_time, 'lat': ping.latitude, 'lng': ping.longitude})
+    
     records = Attendance.query.order_by(Attendance.date.desc()).all()
     attendance_data = []
     for r in records:
-        hours = 0
-        if r.in_time and r.out_time: hours = (r.out_time - r.in_time).total_seconds() / 3600
+        hours = (r.out_time - r.in_time).total_seconds() / 3600 if r.in_time and r.out_time else 0
         attendance_data.append({'user': r.user.username, 'date': r.date, 'in': r.in_time, 'out': r.out_time, 'hours': round(hours, 2)})
-
     return render_template('admin_attendance.html', map_data=live_map_data, records=attendance_data)
 
 @admin_bp.route('/admin/export-attendance')
@@ -131,35 +95,29 @@ def export_attendance():
     records = Attendance.query.order_by(Attendance.date.desc()).all()
     data = []
     for r in records:
-        hours = 0
-        if r.in_time and r.out_time: hours = (r.out_time - r.in_time).total_seconds() / 3600
-        data.append({'Employee': r.user.username, 'Date': r.date, 'In Time': r.in_time, 'Out Time': r.out_time, 'Total Hours': round(hours, 2)})
+        hours = (r.out_time - r.in_time).total_seconds() / 3600 if r.in_time and r.out_time else 0
+        data.append({'Employee': r.user.username, 'Date': r.date, 'In': r.in_time, 'Out': r.out_time, 'Hours': round(hours, 2)})
     return Response(pd.DataFrame(data).to_csv(index=False), mimetype="text/csv", headers={"Content-disposition": "attachment; filename=attendance_report.csv"})
 
-# --- EXPENSE MANAGEMENT & EXPORT ---
+# --- EXPENSES MANAGEMENT ---
 @admin_bp.route('/admin/expenses-manage')
 @login_required
 def admin_expenses():
     if current_user.role != 'Admin': return redirect(url_for('admin.dashboard'))
     pending = Expense.query.filter_by(status='Pending').all()
     history = Expense.query.filter(Expense.status != 'Pending').order_by(Expense.date.desc()).all()
-    
-    # Chart Data Calculation
-    total_approved = db.session.query(db.func.sum(Expense.amount)).filter(Expense.status=='Approved').scalar() or 0
-    total_pending = db.session.query(db.func.sum(Expense.amount)).filter(Expense.status=='Pending').scalar() or 0
-    
-    return render_template('admin_expenses.html', pending=pending, history=history, stats={'approved': total_approved, 'pending': total_pending})
+    approved = db.session.query(db.func.sum(Expense.amount)).filter(Expense.status=='Approved').scalar() or 0
+    pending_sum = db.session.query(db.func.sum(Expense.amount)).filter(Expense.status=='Pending').scalar() or 0
+    return render_template('admin_expenses.html', pending=pending, history=history, stats={'approved': approved, 'pending': pending_sum})
 
 @admin_bp.route('/admin/export-expenses')
 @login_required
 def export_expenses():
     expenses = Expense.query.order_by(Expense.date.desc()).all()
-    data = []
-    for e in expenses:
-        data.append({'User': e.user.username, 'Date': e.date, 'Category': e.category, 'Amount': e.amount, 'Status': e.status, 'Desc': e.description})
+    data = [{'User': e.user.username, 'Date': e.date, 'Amount': e.amount, 'Status': e.status} for e in expenses]
     return Response(pd.DataFrame(data).to_csv(index=False), mimetype="text/csv", headers={"Content-disposition": "attachment; filename=expense_report.csv"})
 
-# --- STANDARD ROUTES (Leave, Upload, etc.) ---
+# --- STANDARD ROUTES (Leaves, Attendance, Expenses) ---
 @admin_bp.route('/admin/leaves')
 @login_required
 def admin_leaves():
@@ -200,12 +158,13 @@ def expenses():
             file = request.files['bill_image']
             if file and allowed_file(file.filename):
                 filename = secure_filename(file.filename)
+                # FORCE CREATE DIRECTORY IF MISSING
                 os.makedirs(os.path.join(current_app.root_path, 'static', 'uploads'), exist_ok=True)
                 file.save(os.path.join(current_app.root_path, 'static', 'uploads', filename))
-        if exp_date and category and amount:
+        if exp_date and amount:
             db.session.add(Expense(date=datetime.strptime(exp_date, '%Y-%m-%d').date(), category=category, amount=float(amount), description=desc, bill_image=filename, status='Pending', user_id=current_user.id))
             db.session.commit()
-            flash('Expense added.', 'success')
+            flash('Expense Submitted', 'success')
             return redirect(url_for('admin.expenses'))
     history = Expense.query.filter_by(user_id=current_user.id).order_by(Expense.date.desc()).all()
     return render_template('expenses.html', history=history)
@@ -217,8 +176,8 @@ def todo():
         action = request.form.get('action')
         if action == 'add':
             title, due_str, priority = request.form.get('title'), request.form.get('due_date'), request.form.get('priority')
-            due_dt = datetime.strptime(due_str, '%Y-%m-%dT%H:%M') if due_str else None
-            if title: db.session.add(Todo(title=title, due_date=due_dt, priority=priority, user_id=current_user.id)); db.session.commit()
+            db.session.add(Todo(title=title, due_date=datetime.strptime(due_str, '%Y-%m-%dT%H:%M') if due_str else None, priority=priority, user_id=current_user.id))
+            db.session.commit()
         elif action == 'complete':
             t = Todo.query.get(request.form.get('task_id'))
             if t: t.status = 'Completed'; db.session.commit()
@@ -259,6 +218,7 @@ def approve_expense(id):
 def reject_expense(id):
     if current_user.role == 'Admin': r=Expense.query.get(id); r.status='Rejected'; db.session.commit()
     return redirect(url_for('admin.admin_expenses'))
+
 @admin_bp.route('/upload', methods=['GET', 'POST'])
 @login_required
 def upload_file():
@@ -266,15 +226,19 @@ def upload_file():
         f = request.files['file']
         if f and allowed_file(f.filename):
             fn = secure_filename(f.filename)
+            # FORCE CREATE DIRECTORY
+            os.makedirs(os.path.join(current_app.root_path, 'static', 'uploads'), exist_ok=True)
             f.save(os.path.join(current_app.root_path, 'static', 'uploads', fn))
             db.session.add(Quotation(filename=fn, client_name=request.form.get('client_name'), product_details=request.form.get('product_details'), user_id=current_user.id)); db.session.commit()
             return redirect(url_for('admin.dashboard'))
     return render_template('upload.html')
+
 @admin_bp.route('/download/<int:file_id>')
 @login_required
 def download_file(file_id):
     q = Quotation.query.get_or_404(file_id)
     return send_from_directory(os.path.join(current_app.root_path, 'static', 'uploads'), q.filename, as_attachment=True)
+
 @admin_bp.route('/view_file/<int:file_id>')
 @login_required
 def view_file(file_id):
