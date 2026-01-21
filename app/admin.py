@@ -14,13 +14,12 @@ ALLOWED_EXTENSIONS = {'pdf', 'xlsx', 'xls', 'jpg', 'jpeg', 'png'}
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-# --- DASHBOARD (THE SMART SEARCH ENGINE) ---
+# --- DASHBOARD ---
 @admin_bp.route('/dashboard')
 @login_required
 def dashboard():
     query = request.args.get('q')
     
-    # 1. Permission Logic
     if current_user.role == 'Admin':
         file_query = Quotation.query
     else:
@@ -31,7 +30,7 @@ def dashboard():
     if query:
         search_term = f"%{query}%"
         
-        # A. Find Files (Filename or Client Name)
+        # Files
         search_results['files'] = file_query.filter(
             or_(
                 Quotation.filename.ilike(search_term),
@@ -39,35 +38,31 @@ def dashboard():
             )
         ).order_by(Quotation.uploaded_at.desc()).all()
         
-        # B. Find SPECIFIC ITEMS (The "Awesome" Search)
-        # It looks inside the ProductData table for Descriptions, Makes, Cat Nos, etc.
+        # Items (Smart Search)
         item_query = ProductData.query.join(Quotation).filter(
             or_(
                 ProductData.item_name.ilike(search_term),
                 ProductData.make.ilike(search_term),
                 ProductData.cat_no.ilike(search_term),
                 ProductData.reagent_kit.ilike(search_term),
-                ProductData.description.ilike(search_term)
+                ProductData.description.ilike(search_term) # Matches new Model field
             )
         )
         
-        # Apply permissions to Item Search too
         if current_user.role != 'Admin':
             item_query = item_query.filter(Quotation.user_id == current_user.id)
             
-        search_results['product_matches'] = item_query.limit(50).all() 
+        search_results['product_matches'] = item_query.limit(50).all()
     
     else:
-        # No search? Just show latest uploads
         search_results['files'] = file_query.order_by(Quotation.uploaded_at.desc()).limit(20).all()
     
-    # Stats Calculation
     user_expenses = Expense.query.filter_by(user_id=current_user.id, status='Pending').all()
     stats = {'quote_count': len(search_results['files']), 'expense_total': sum(e.amount for e in user_expenses) if user_expenses else 0, 'role': current_user.role}
     
     return render_template('dashboard.html', results=search_results, stats=stats)
 
-# --- UPLOAD (THE UNIVERSAL "HEADER HUNTER" PARSER) ---
+# --- UPLOAD (Universal) ---
 @admin_bp.route('/upload', methods=['GET', 'POST'])
 @login_required
 def upload_file():
@@ -80,7 +75,6 @@ def upload_file():
             full_path = os.path.join(path, fn)
             f.save(full_path)
             
-            # 1. Save File Record
             new_quote = Quotation(
                 filename=fn, 
                 client_name=request.form.get('client_name'), 
@@ -90,51 +84,35 @@ def upload_file():
             db.session.add(new_quote)
             db.session.commit()
             
-            # 2. EXTRACT DATA (Universal Logic)
             if fn.endswith(('xlsx', 'xls')):
                 try:
-                    # STEP A: Read without header to scan rows
                     df_raw = pd.read_excel(full_path, header=None)
-                    
                     header_row_index = 0
-                    found_header = False
                     
-                    # STEP B: Hunt for the "Real" Header (Scan first 50 rows)
-                    # We look for a row that contains words like 'Description', 'Item', 'Rate', 'Cat'
+                    # Header Hunter
                     for i, row in df_raw.head(50).iterrows():
-                        # Convert row to a single lowercase string for easy checking
                         row_str = " ".join([str(val).lower() for val in row.values])
-                        
-                        # Logic: If row has (Item OR Description) AND (Rate OR Price OR Amount), it's the header!
                         has_item = any(x in row_str for x in ['item', 'description', 'particular', 'product'])
-                        has_rate = any(x in row_str for x in ['rate', 'price', 'amount', 'mrp', 'total'])
-                        
+                        has_rate = any(x in row_str for x in ['rate', 'price', 'amount', 'mrp'])
                         if has_item and has_rate:
                             header_row_index = i
-                            found_header = True
                             break
                     
-                    # STEP C: Re-read file with the correct header
                     df = pd.read_excel(full_path, header=header_row_index)
-                    
-                    # Clean Headers: lowercase, strip spaces
                     df.columns = df.columns.astype(str).str.lower().str.strip()
                     
-                    # Define Synonyms
                     col_map = {
-                        'item_name': ['item', 'description', 'particular', 'product', 'name', 'desc'],
-                        'make': ['make', 'brand', 'company', 'manufacturer', 'mfr'],
-                        'cat_no': ['cat', 'cat no', 'catalog', 'catalogue', 'code', 'part no', 'ref'],
-                        'reagent_kit': ['reagent', 'kit', 'pack', 'size', 'packing'],
-                        'rate': ['rate', 'price', 'mrp', 'amount', 'unit price', 'cost']
+                        'item_name': ['item', 'description', 'particular', 'product', 'desc'],
+                        'make': ['make', 'brand', 'company', 'manufacturer'],
+                        'cat_no': ['cat', 'code', 'part no', 'ref'],
+                        'reagent_kit': ['reagent', 'kit', 'pack'],
+                        'rate': ['rate', 'price', 'mrp', 'amount']
                     }
 
-                    # Function to find the best matching column
                     def find_col(possible_names):
                         for candidate in possible_names:
                             for actual_col in df.columns:
-                                if candidate in actual_col: 
-                                    return actual_col
+                                if candidate in actual_col: return actual_col
                         return None
 
                     count = 0
@@ -147,7 +125,6 @@ def upload_file():
                         
                         def clean(val): return val if val and val.lower() != 'nan' and val.lower() != 'none' else None
                         
-                        # SAVE ONLY VALID ROWS (Must have Item Name or Cat No)
                         if clean(i_name) or clean(i_cat):
                             db.session.add(ProductData(
                                 quotation_id=new_quote.id,
@@ -161,19 +138,16 @@ def upload_file():
                             count += 1
                     
                     db.session.commit()
-                    if count > 0:
-                        flash(f'Success! Found table at Row {header_row_index + 1} and indexed {count} items.', 'success')
-                    else:
-                        flash('File uploaded, but no data rows found. Check column names.', 'warning')
+                    flash(f'Indexed {count} items found starting at Row {header_row_index + 1}.', 'success')
                     
                 except Exception as e:
-                    print(f"Excel Parse Error: {e}")
-                    flash('File uploaded, but structure was too complex to read automatically.', 'warning')
+                    print(f"Excel Error: {e}")
+                    flash('File uploaded but could not be indexed.', 'warning')
 
             return redirect(url_for('admin.dashboard'))
     return render_template('upload.html')
 
-# --- ASSIGN TASKS ---
+# --- ASSIGNED ---
 @admin_bp.route('/assigned', methods=['GET', 'POST'])
 @login_required
 def assigned():
@@ -205,10 +179,11 @@ def assigned():
 @login_required
 def admin_panel():
     if current_user.role != 'Admin': return redirect(url_for('admin.dashboard'))
-    pending_leaves = HolidayRequest.query.filter_by(status='Pending').count()
-    pending_expenses = Expense.query.filter_by(status='Pending').count()
-    active_staff = Attendance.query.filter_by(date=date.today(), out_time=None).count()
-    stats = {'leaves': pending_leaves, 'expenses': pending_expenses, 'active_staff': active_staff}
+    stats = {
+        'leaves': HolidayRequest.query.filter_by(status='Pending').count(),
+        'expenses': Expense.query.filter_by(status='Pending').count(),
+        'active_staff': Attendance.query.filter_by(date=date.today(), out_time=None).count()
+    }
     return render_template('admin_panel.html', stats=stats)
 
 # --- ADMIN ATTENDANCE ---
@@ -233,13 +208,10 @@ def admin_attendance():
 @login_required
 def export_attendance():
     records = Attendance.query.order_by(Attendance.date.desc()).all()
-    data = []
-    for r in records:
-        hours = (r.out_time - r.in_time).total_seconds() / 3600 if r.in_time and r.out_time else 0
-        data.append({'Employee': r.user.username, 'Date': r.date, 'In': r.in_time, 'Out': r.out_time, 'Hours': round(hours, 2)})
+    data = [{'Employee': r.user.username, 'Date': r.date, 'In': r.in_time, 'Out': r.out_time, 'Hours': round((r.out_time - r.in_time).total_seconds()/3600 if r.out_time else 0, 2)} for r in records]
     return Response(pd.DataFrame(data).to_csv(index=False), mimetype="text/csv", headers={"Content-disposition": "attachment; filename=attendance_report.csv"})
 
-# --- EXPENSES ---
+# --- EXPENSES & OTHERS ---
 @admin_bp.route('/admin/expenses-manage')
 @login_required
 def admin_expenses():
@@ -257,7 +229,6 @@ def export_expenses():
     data = [{'User': e.user.username, 'Date': e.date, 'Amount': e.amount, 'Status': e.status} for e in expenses]
     return Response(pd.DataFrame(data).to_csv(index=False), mimetype="text/csv", headers={"Content-disposition": "attachment; filename=expense_report.csv"})
 
-# --- STANDARD ROUTES ---
 @admin_bp.route('/admin/leaves')
 @login_required
 def admin_leaves():
