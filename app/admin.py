@@ -1,18 +1,35 @@
+
 import os
+
 import pandas as pd
+
 from datetime import datetime, date, timedelta
+
 from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app, send_from_directory, Response
+
 from flask_login import login_required, current_user
+
 from werkzeug.utils import secure_filename
+
 from .models import Quotation, Expense, Attendance, HolidayRequest, Todo, LocationPing, AssignedTask, User, ProductData, db
+
 from sqlalchemy import or_
+
+
 
 admin_bp = Blueprint('admin', __name__)
 
+
+
 ALLOWED_EXTENSIONS = {'pdf', 'xlsx', 'xls', 'jpg', 'jpeg', 'png', 'csv'}
 
+
+
 def allowed_file(filename):
+
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
 
 # --- DASHBOARD (SMART SEARCH) ---
 @admin_bp.route('/dashboard')
@@ -58,9 +75,58 @@ def dashboard():
         search_results['files'] = file_query.order_by(Quotation.uploaded_at.desc()).limit(20).all()
     
     user_expenses = Expense.query.filter_by(user_id=current_user.id, status='Pending').all()
-    stats = {'quote_count': len(search_results['files']), 'expense_total': sum(e.amount for e in user_expenses) if user_expenses else 0, 'role': current_user.role}
+    stats = {
+        'quote_count': len(search_results['files']),
+        'expense_total': sum(e.amount for e in user_expenses) if user_expenses else 0,
+        'role': current_user.role
+    }
     
     return render_template('dashboard.html', results=search_results, stats=stats)
+
+
+# --- SMART SEARCH API (read-only) ---
+@admin_bp.route('/api/search')
+@login_required
+def api_search():
+    """
+    Returns live smart-search results for type-ahead (2+ characters).
+    Searches across ProductData: item_name, make, cat_no, reagent_kit, description.
+    Respects Admin vs non-Admin visibility (non-admin sees own uploads only).
+    """
+    q = (request.args.get('q') or '').strip()
+    if len(q) < 2:
+        return {'results': []}
+
+    like = f"%{q}%"
+    item_query = ProductData.query.join(Quotation).filter(
+        or_(
+            ProductData.item_name.ilike(like),
+            ProductData.make.ilike(like),
+            ProductData.cat_no.ilike(like),
+            ProductData.reagent_kit.ilike(like),
+            ProductData.description.ilike(like)
+        )
+    )
+
+    if current_user.role != 'Admin':
+        item_query = item_query.filter(Quotation.user_id == current_user.id)
+
+    rows = item_query.limit(50).all()
+
+    def as_dict(p):
+        return {
+            'item': p.item_name,
+            'make': p.make,
+            'cat_no': p.cat_no,
+            'reagent_kit': p.reagent_kit,
+            'rate': p.rate,
+            'specs': p.description,
+            'quotation_id': p.quotation_id
+        }
+
+    return {'results': [as_dict(r) for r in rows]}
+
+
 
 # --- UPLOAD (FAIL-SAFE PARSER) ---
 @admin_bp.route('/upload', methods=['GET', 'POST'])
@@ -111,7 +177,6 @@ def upload_file():
                         df = pd.read_excel(full_path, header=header_row)
                     
                     # 4. IDENTIFY COLUMN INDICES (The Robust Part)
-                    # We try to find names, but default to POSITIONS if names fail.
                     headers = [str(c).lower().strip() for c in df.columns]
                     
                     def get_idx(keywords, default_idx):
@@ -156,7 +221,7 @@ def upload_file():
                                     description=item
                                 ))
                                 count += 1
-                                if count == 1: sample_item = item # Grab first match for feedback
+                                if count == 1: sample_item = item 
                     
                     db.session.commit()
                     
@@ -171,6 +236,8 @@ def upload_file():
 
             return redirect(url_for('admin.dashboard'))
     return render_template('upload.html')
+
+
 
 # --- VIEW FILE (RAW MODE) ---
 @admin_bp.route('/view_file/<int:file_id>')
@@ -187,14 +254,19 @@ def view_file(file_id):
             
             cols = [chr(65+i) if i < 26 else f"Col{i+1}" for i in range(len(df.columns))]
             return render_template('excel_view.html', filename=q.filename, columns=cols, data=df.fillna('').values.tolist())
-        except: pass
+        except: 
+            pass
     return redirect(url_for('admin.download_file', file_id=file_id))
+
+
 
 @admin_bp.route('/download/<int:file_id>')
 @login_required
 def download_file(file_id):
     q = Quotation.query.get_or_404(file_id)
     return send_from_directory(os.path.join(current_app.root_path, 'static', 'uploads'), q.filename, as_attachment=True)
+
+
 
 # --- ASSIGNED ---
 @admin_bp.route('/assigned', methods=['GET', 'POST'])
@@ -223,6 +295,8 @@ def assigned():
     tasks = AssignedTask.query.order_by(AssignedTask.created_at.desc()).all() if current_user.role == 'Admin' else AssignedTask.query.filter_by(assigned_to_id=current_user.id).order_by(AssignedTask.created_at.desc()).all()
     return render_template('assigned.html', tasks=tasks, employees=employees)
 
+
+
 # --- ADMIN PANEL ---
 @admin_bp.route('/admin-panel')
 @login_required
@@ -230,6 +304,8 @@ def admin_panel():
     if current_user.role != 'Admin': return redirect(url_for('admin.dashboard'))
     stats = {'leaves': HolidayRequest.query.filter_by(status='Pending').count(), 'expenses': Expense.query.filter_by(status='Pending').count(), 'active_staff': Attendance.query.filter_by(date=date.today(), out_time=None).count()}
     return render_template('admin_panel.html', stats=stats)
+
+
 
 # --- ADMIN ATTENDANCE ---
 @admin_bp.route('/admin/attendance-monitor')
@@ -248,12 +324,16 @@ def admin_attendance():
         attendance_data.append({'user': r.user.username, 'date': r.date, 'in': r.in_time, 'out': r.out_time, 'hours': round(hours, 2)})
     return render_template('admin_attendance.html', map_data=live_map_data, records=attendance_data)
 
+
+
 @admin_bp.route('/admin/export-attendance')
 @login_required
 def export_attendance():
     records = Attendance.query.order_by(Attendance.date.desc()).all()
     data = [{'Employee': r.user.username, 'Date': r.date, 'In': r.in_time, 'Out': r.out_time, 'Hours': round((r.out_time - r.in_time).total_seconds()/3600 if r.out_time else 0, 2)} for r in records]
     return Response(pd.DataFrame(data).to_csv(index=False), mimetype="text/csv", headers={"Content-disposition": "attachment; filename=attendance_report.csv"})
+
+
 
 # --- EXPENSES ---
 @admin_bp.route('/admin/expenses-manage')
@@ -266,6 +346,8 @@ def admin_expenses():
     pending_sum = db.session.query(db.func.sum(Expense.amount)).filter(Expense.status=='Pending').scalar() or 0
     return render_template('admin_expenses.html', pending=pending, history=history, stats={'approved': approved, 'pending': pending_sum})
 
+
+
 @admin_bp.route('/admin/export-expenses')
 @login_required
 def export_expenses():
@@ -273,12 +355,16 @@ def export_expenses():
     data = [{'User': e.user.username, 'Date': e.date, 'Amount': e.amount, 'Status': e.status} for e in expenses]
     return Response(pd.DataFrame(data).to_csv(index=False), mimetype="text/csv", headers={"Content-disposition": "attachment; filename=expense_report.csv"})
 
+
+
 @admin_bp.route('/admin/leaves')
 @login_required
 def admin_leaves():
     pending = HolidayRequest.query.filter_by(status='Pending').all()
     history = HolidayRequest.query.filter(HolidayRequest.status != 'Pending').order_by(HolidayRequest.start_date.desc()).all()
     return render_template('admin_leaves.html', pending=pending, history=history)
+
+
 
 @admin_bp.route('/attendance', methods=['GET', 'POST'])
 @login_required
@@ -303,6 +389,8 @@ def attendance():
     history = Attendance.query.filter_by(user_id=current_user.id).order_by(Attendance.date.desc()).limit(10).all()
     return render_template('attendance.html', record=record, history=history, today=today)
 
+
+
 @admin_bp.route('/expenses', methods=['GET', 'POST'])
 @login_required
 def expenses():
@@ -323,6 +411,8 @@ def expenses():
     history = Expense.query.filter_by(user_id=current_user.id).order_by(Expense.date.desc()).all()
     return render_template('expenses.html', history=history)
 
+
+
 @admin_bp.route('/todo', methods=['GET', 'POST'])
 @login_required
 def todo():
@@ -342,6 +432,8 @@ def todo():
     tasks = Todo.query.filter_by(user_id=current_user.id).order_by(Todo.due_date.asc()).all()
     return render_template('todo.html', pending_tasks=[t for t in tasks if t.status=='Pending'], completed_tasks=[t for t in tasks if t.status=='Completed'], now=datetime.now())
 
+
+
 @admin_bp.route('/leave', methods=['GET', 'POST'])
 @login_required
 def leave():
@@ -351,22 +443,27 @@ def leave():
     history = HolidayRequest.query.filter_by(user_id=current_user.id).order_by(HolidayRequest.start_date.desc()).all()
     return render_template('leave.html', history=history)
 
+
+
 # Approvals & View Files
 @admin_bp.route('/approve-leave/<int:id>')
 @login_required
 def approve_leave(id):
     if current_user.role == 'Admin': r=HolidayRequest.query.get(id); r.status='Approved'; db.session.commit()
     return redirect(url_for('admin.admin_leaves'))
+
 @admin_bp.route('/reject-leave/<int:id>')
 @login_required
 def reject_leave(id):
     if current_user.role == 'Admin': r=HolidayRequest.query.get(id); r.status='Rejected'; db.session.commit()
     return redirect(url_for('admin.admin_leaves'))
+
 @admin_bp.route('/approve-expense/<int:id>')
 @login_required
 def approve_expense(id):
     if current_user.role == 'Admin': r=Expense.query.get(id); r.status='Approved'; db.session.commit()
     return redirect(url_for('admin.admin_expenses'))
+
 @admin_bp.route('/reject-expense/<int:id>')
 @login_required
 def reject_expense(id):
