@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+{% block content %}
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<div class="row g-4">
+    
+    <div class="col-lg-6">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white py-3 border-bottom-0">
+                <h5 class="fw-bold mb-0" style="color: var(--edudap-blue);">
+                    <i class="bi bi-geo-alt-fill me-2"></i>Live Employee Locations
+                </h5>
+            </div>
+            <div class="card-body p-0">
+                <div id="map" style="height: 400px; width: 100%;"></div>
+            </div>
+            <div class="card-footer bg-light">
+                <small class="text-muted">Shows location at time of Punch In (Today)</small>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-6">
+        
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-header bg-warning bg-opacity-10 py-3 border-bottom-0">
+                <h6 class="fw-bold mb-0 text-warning text-dark-emphasis">
+                    <i class="bi bi-calendar-event me-2"></i>Pending Leave Requests
+                </h6>
+            </div>
+            <div class="card-body p-0">
+                <table class="table mb-0 align-middle small">
+                    <thead class="bg-light text-muted">
+                        <tr>
+                            <th class="ps-3">Employee</th>
+                            <th>Dates / Reason</th>
+                            <th class="text-end pe-3">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if leaves %}
+                            {% for req in leaves %}
+                            <tr>
+                                <td class="ps-3 fw-bold">{{ req.user.username }}</td>
+                                <td>
+                                    <div>{{ req.start_date.strftime('%d %b') }} - {{ req.end_date.strftime('%d %b') }}</div>
+                                    <div class="text-muted fst-italic">{{ req.reason }}</div>
+                                </td>
+                                <td class="text-end pe-3">
+                                    <a href="{{ url_for('admin.approve_leave', id=req.id) }}" class="btn btn-success btn-sm py-0"><i class="bi bi-check"></i></a>
+                                    <a href="{{ url_for('admin.reject_leave', id=req.id) }}" class="btn btn-outline-danger btn-sm py-0"><i class="bi bi-x"></i></a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr><td colspan="3" class="text-center py-3 text-muted">No pending leaves.</td></tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-info bg-opacity-10 py-3 border-bottom-0">
+                <h6 class="fw-bold mb-0 text-info text-dark-emphasis">
+                    <i class="bi bi-cash-stack me-2"></i>Pending Expense Claims
+                </h6>
+            </div>
+            <div class="card-body p-0">
+                <table class="table mb-0 align-middle small">
+                    <thead class="bg-light text-muted">
+                        <tr>
+                            <th class="ps-3">Employee</th>
+                            <th>Claim Details</th>
+                            <th class="text-end pe-3">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if expenses %}
+                            {% for exp in expenses %}
+                            <tr>
+                                <td class="ps-3 fw-bold">{{ exp.user.username }}</td>
+                                <td>
+                                    <div class="fw-bold">₹{{ exp.amount }} <span class="badge bg-light text-dark border ms-1">{{ exp.category }}</span></div>
+                                    <div class="text-muted fst-italic">{{ exp.description or '' }}</div>
+                                    <div class="text-muted" style="font-size: 0.75rem;">{{ exp.date.strftime('%d %b %Y') }}</div>
+                                </td>
+                                <td class="text-end pe-3">
+                                    <a href="{{ url_for('admin.approve_expense', id=exp.id) }}" class="btn btn-success btn-sm py-0"><i class="bi bi-check"></i></a>
+                                    <a href="{{ url_for('admin.reject_expense', id=exp.id) }}" class="btn btn-outline-danger btn-sm py-0"><i class="bi bi-x"></i></a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr><td colspan="3" class="text-center py-3 text-muted">No pending expenses.</td></tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+    // INITIALIZE MAP (Default Center: Delhi)
+    var map = L.map('map').setView([28.6139, 77.2090], 10);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+
+    // ADD MARKERS FROM BACKEND DATA
+    var users = {{ map_data|tojson }};
+    
+    if (users.length > 0) {
+        var bounds = L.latLngBounds();
+        
+        users.forEach(function(u) {
+            var marker = L.marker([u.lat, u.lng]).addTo(map)
+                .bindPopup("<b>" + u.username + "</b><br>Punched In: " + new Date(u.in_time).toLocaleTimeString());
+            bounds.extend([u.lat, u.lng]);
+        });
+        
+        // Auto-zoom to fit all employees
+        map.fitBounds(bounds, {padding: [50, 50]});
+    }
+</script>
+
+{% endblock %}
