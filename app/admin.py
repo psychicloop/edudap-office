@@ -9,12 +9,12 @@ from sqlalchemy import or_, extract
 
 admin_bp = Blueprint('admin', __name__)
 
-ALLOWED_EXTENSIONS = {'pdf', 'xlsx', 'xls', 'jpg', 'jpeg', 'png'}
+ALLOWED_EXTENSIONS = {'pdf', 'xlsx', 'xls', 'jpg', 'jpeg', 'png', 'csv'}
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-# --- DASHBOARD ---
+# --- DASHBOARD (SMART SEARCH) ---
 @admin_bp.route('/dashboard')
 @login_required
 def dashboard():
@@ -45,7 +45,7 @@ def dashboard():
                 ProductData.make.ilike(search_term),
                 ProductData.cat_no.ilike(search_term),
                 ProductData.reagent_kit.ilike(search_term),
-                ProductData.description.ilike(search_term) # Matches new Model field
+                ProductData.description.ilike(search_term)
             )
         )
         
@@ -62,7 +62,7 @@ def dashboard():
     
     return render_template('dashboard.html', results=search_results, stats=stats)
 
-# --- UPLOAD (Universal) ---
+# --- UPLOAD (TARGETED HEADER HUNTER) ---
 @admin_bp.route('/upload', methods=['GET', 'POST'])
 @login_required
 def upload_file():
@@ -84,35 +84,54 @@ def upload_file():
             db.session.add(new_quote)
             db.session.commit()
             
-            if fn.endswith(('xlsx', 'xls')):
+            if fn.endswith(('xlsx', 'xls', 'csv')):
                 try:
-                    df_raw = pd.read_excel(full_path, header=None)
+                    # 1. Read the file (Handle CSV or Excel)
+                    if fn.endswith('.csv'):
+                        df_raw = pd.read_csv(full_path, header=None)
+                    else:
+                        df_raw = pd.read_excel(full_path, header=None)
+                    
                     header_row_index = 0
                     
-                    # Header Hunter
+                    # 2. TARGETED HEADER HUNTER
+                    # We scan the first 50 rows. We look for a row that contains your EXACT columns.
                     for i, row in df_raw.head(50).iterrows():
                         row_str = " ".join([str(val).lower() for val in row.values])
-                        has_item = any(x in row_str for x in ['item', 'description', 'particular', 'product'])
-                        has_rate = any(x in row_str for x in ['rate', 'price', 'amount', 'mrp'])
-                        if has_item and has_rate:
+                        
+                        # The fingerprint of your file:
+                        has_items = 'items' in row_str or 'description' in row_str
+                        has_make = 'make' in row_str or 'brand' in row_str
+                        has_rate = 'rate' in row_str or 'unit price' in row_str
+                        
+                        # If we find at least "Items" and "Rate", we assume this is the header row
+                        if has_items and has_rate:
                             header_row_index = i
                             break
                     
-                    df = pd.read_excel(full_path, header=header_row_index)
+                    # 3. Re-read with the detected header
+                    if fn.endswith('.csv'):
+                        df = pd.read_csv(full_path, header=header_row_index)
+                    else:
+                        df = pd.read_excel(full_path, header=header_row_index)
+                        
+                    # Normalize columns (lowercase, strip spaces)
                     df.columns = df.columns.astype(str).str.lower().str.strip()
                     
+                    # 4. Map Your Specific Columns to DB Fields
                     col_map = {
-                        'item_name': ['item', 'description', 'particular', 'product', 'desc'],
-                        'make': ['make', 'brand', 'company', 'manufacturer'],
-                        'cat_no': ['cat', 'code', 'part no', 'ref'],
-                        'reagent_kit': ['reagent', 'kit', 'pack'],
-                        'rate': ['rate', 'price', 'mrp', 'amount']
+                        'item_name': ['items', 'product description', 'description', 'particulars'],
+                        'make': ['make', 'brand'],
+                        'cat_no': ['cat no', 'cat. no.', 'catalogue no', 'part no'],
+                        'reagent_kit': ['unit', 'pack', 'size', 'reagent'], # Maps 'Unit' -> Reagent/Kit
+                        'rate': ['rate', 'unit price', 'price']
                     }
 
                     def find_col(possible_names):
                         for candidate in possible_names:
                             for actual_col in df.columns:
-                                if candidate in actual_col: return actual_col
+                                if candidate == actual_col or candidate in actual_col: 
+                                    return actual_col
                         return None
 
                     count = 0
@@ -123,9 +142,10 @@ def upload_file():
                         i_kit = str(row[find_col(col_map['reagent_kit'])]) if find_col(col_map['reagent_kit']) else None
                         i_rate = str(row[find_col(col_map['rate'])]) if find_col(col_map['rate']) else None
                         
-                        def clean(val): return val if val and val.lower() != 'nan' and val.lower() != 'none' else None
+                        def clean(val): return val if val and val.lower() not in ['nan', 'none', '', 'items', 'make'] else None
                         
-                        if clean(i_name) or clean(i_cat):
+                        # Save if it looks like a real product row (has Item Name or Cat No)
+                        if clean(i_name) and (clean(i_rate) or clean(i_cat)):
                             db.session.add(ProductData(
                                 quotation_id=new_quote.id,
                                 item_name=clean(i_name),
@@ -138,11 +158,11 @@ def upload_file():
                             count += 1
                     
                     db.session.commit()
-                    flash(f'Indexed {count} items found starting at Row {header_row_index + 1}.', 'success')
+                    flash(f'Success! Found table at Row {header_row_index + 1} and indexed {count} items.', 'success')
                     
                 except Exception as e:
-                    print(f"Excel Error: {e}")
-                    flash('File uploaded but could not be indexed.', 'warning')
+                    print(f"File Parse Error: {e}")
+                    flash('File uploaded but structure was too complex.', 'warning')
 
             return redirect(url_for('admin.dashboard'))
     return render_template('upload.html')
