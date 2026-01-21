@@ -43,7 +43,7 @@
                     <thead class="bg-light">
                         <tr>
                             <th class="ps-4">File Name</th>
-                            <th>Type</th>
+                            <th>Description</th>
                             <th>Uploaded By</th>
                             <th>Date</th>
                             <th class="text-end pe-4">Actions</th>
@@ -53,11 +53,11 @@
                         {% for f in files %}
                         <tr>
                             <td class="ps-4 fw-medium">{{ f.filename }}</td>
-                            <td><span class="badge bg-light text-dark border">{{ f.file_type }}</span></td>
+                            <td>{{ f.description or 'No description' }}</td>
                             <td>{{ f.uploader.username if f.uploader else 'Unknown' }}</td>
                             <td class="text-muted small">{{ f.upload_date.strftime('%Y-%m-%d') }}</td>
                             <td class="text-end pe-4">
-                                <a href="{{ url_for('admin.view_file', file_id=f.id) }}" class="btn btn-sm btn-outline-primary">View</a>
+                                <a href="#" class="btn btn-sm btn-outline-primary">View</a>
                             </td>
                         </tr>
                         {% else %}
