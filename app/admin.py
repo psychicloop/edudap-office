@@ -1,48 +1,48 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 from flask_login import login_required, current_user
 from functools import wraps
-from .models import User, ProductData, db 
-# Note: Ensure 'ProductData' matches whatever model you are using to store files/products
+from .models import User, db 
 
 admin_bp = Blueprint('admin', __name__)
 
-# --- SECURITY DECORATOR ---
-def admin_required(f):
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if not current_user.is_authenticated or not current_user.is_admin:
-            flash('Access Denied.', 'danger')
+# --- Security Decorator ---
+def admin_required(fn):
+    @wraps(fn)
+    def wrapper(*args, **kwargs):
+        if not current_user.is_authenticated:
+            return redirect(url_for('auth.login'))
+        if getattr(current_user, 'role', None) != 'Admin':
+            flash('Admin access required.', 'danger')
             return redirect(url_for('admin.dashboard'))
-        return f(*args, **kwargs)
-    return decorated_function
+        return fn(*args, **kwargs)
+    return wrapper
 
-# --- DASHBOARD (The Main Page) ---
-@admin_bp.route('/dashboard')
+# --- Dashboard (Safe Mode) ---
+@admin_bp.route('/dashboard', methods=['GET'])
 @login_required
 def dashboard():
-    search_query = request.args.get('q', '').strip()
-    
-    # Basic logic: If searching, filter results. If not, show all (limit 20).
-    if search_query:
-        # Assuming you are searching ProductData. Adjust model name if needed.
-        files = ProductData.query.filter(ProductData.filename.contains(search_query)).all()
-        total_files = len(files)
-    else:
-        files = ProductData.query.order_by(ProductData.upload_date.desc()).limit(20).all()
-        total_files = ProductData.query.count()
+    # Placeholder stats to prevent crashes while models are missing
+    stats = {
+        "total_files": 0,
+        "vendor_count": 0,
+        "product_count": 0,
+        "search_count_24h": 0,
+        "files": [] 
+    }
+    # ALIGNMENT FIX: Points to 'admin/dashboard.html'
+    return render_template('admin/dashboard.html', **stats)
 
-    # CRITICAL: This points to YOUR specific file 'dashboard_admin.html'
-    return render_template('dashboard_admin.html', files=files, total_files=total_files)
-
-# --- UPLOAD ROUTE (Placeholder) ---
-@admin_bp.route('/upload', methods=['GET', 'POST'])
+# --- Upload Stub ---
+@admin_bp.route('/upload', methods=['GET', 'POST'], endpoint='upload_file')
 @login_required
 def upload_file():
-    # ... your existing upload logic goes here ...
-    return render_template('admin/upload.html') # Or whatever your upload template is
+    if request.method == 'POST':
+        flash('Upload feature temporarily disabled for database update.', 'warning')
+        return redirect(url_for('admin.dashboard'))
+    return render_template('admin/upload.html')
 
-# --- USER MANAGEMENT (Admins Only) ---
-@admin_bp.route('/users')
+# --- User Management ---
+@admin_bp.route('/users', methods=['GET'])
 @login_required
 @admin_required
 def manage_users():
@@ -54,12 +54,12 @@ def manage_users():
 @admin_required
 def promote_user(user_id):
     user = User.query.get_or_404(user_id)
-    if user.is_admin:
-        flash('User is already Admin.', 'info')
-    else:
-        user.role = 'Admin'
-        db.session.commit()
-        flash(f'Promoted {user.username} to Admin.', 'success')
+    if getattr(user, 'role', None) == 'Admin':
+        flash('User is already an admin.', 'info')
+        return redirect(url_for('admin.manage_users'))
+    user.role = 'Admin'
+    db.session.commit()
+    flash(f'Promoted {user.username} to Admin.', 'success')
     return redirect(url_for('admin.manage_users'))
 
 @admin_bp.route('/demote/<int:user_id>', methods=['POST'])
@@ -67,15 +67,15 @@ def promote_user(user_id):
 @admin_required
 def demote_user(user_id):
     user = User.query.get_or_404(user_id)
-    
     if user.id == current_user.id:
         flash('Cannot demote yourself.', 'warning')
         return redirect(url_for('admin.manage_users'))
-
-    admin_count = User.query.filter_by(role='Admin').count()
-    if admin_count <= 1:
-        flash('Cannot demote the last remaining Admin!', 'danger')
-        return redirect(url_for('admin.manage_users'))
+    
+    # Protect Last Admin
+    if getattr(user, 'role', None) == 'Admin':
+        if User.query.filter_by(role='Admin').count() <= 1:
+            flash('Cannot demote the last remaining admin.', 'danger')
+            return redirect(url_for('admin.manage_users'))
 
     user.role = 'Employee'
     db.session.commit()
