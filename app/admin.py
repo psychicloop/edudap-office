@@ -5,7 +5,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 from .models import Quotation, Expense, Attendance, HolidayRequest, Todo, LocationPing, AssignedTask, User, ProductData, db
-from sqlalchemy import or_, extract
+from sqlalchemy import or_
 
 admin_bp = Blueprint('admin', __name__)
 
@@ -38,7 +38,7 @@ def dashboard():
             )
         ).order_by(Quotation.uploaded_at.desc()).all()
         
-        # 2. Search Items (The Smart Part)
+        # 2. Search Items (Matches Item, Make, Cat No, Specs/Description)
         item_query = ProductData.query.join(Quotation).filter(
             or_(
                 ProductData.item_name.ilike(search_term),
@@ -62,7 +62,7 @@ def dashboard():
     
     return render_template('dashboard.html', results=search_results, stats=stats)
 
-# --- UPLOAD (SCORE-BASED HEADER HUNTER) ---
+# --- UPLOAD (ODOO ANCHOR PARSER) ---
 @admin_bp.route('/upload', methods=['GET', 'POST'])
 @login_required
 def upload_file():
@@ -84,82 +84,113 @@ def upload_file():
             db.session.add(new_quote)
             db.session.commit()
             
-            # SMART EXCEL INDEXING
             if fn.endswith(('xlsx', 'xls', 'csv')):
                 try:
-                    # 1. Read Raw
-                    if fn.endswith('.csv'): df_raw = pd.read_csv(full_path, header=None)
-                    else: df_raw = pd.read_excel(full_path, header=None)
+                    # 1. Read Raw (Engine 'python' handles ragged rows better)
+                    if fn.endswith('.csv'): 
+                        df_raw = pd.read_csv(full_path, header=None, engine='python', on_bad_lines='skip')
+                    else: 
+                        df_raw = pd.read_excel(full_path, header=None)
                     
-                    # 2. SCORE ROWS to find Header (Matches your file format)
-                    keywords = ['items', 'description', 'make', 'cat', 'qty', 'rate', 'price', 'unit', 's.no']
-                    best_header_idx = 0
-                    max_matches = 0
+                    header_row_index = -1
                     
-                    # Scan first 50 rows
-                    for i, row in df_raw.head(50).iterrows():
+                    # 2. FIND ANCHOR: "S.No" / "Sr.No"
+                    # We scan the first 60 rows for the table start.
+                    for i, row in df_raw.head(60).iterrows():
                         row_str = " ".join([str(val).lower() for val in row.values])
-                        matches = sum(1 for k in keywords if k in row_str)
-                        if matches > max_matches:
-                            max_matches = matches
-                            best_header_idx = i
+                        if 's.no' in row_str or 'sr.no' in row_str or 'sl.no' in row_str:
+                            header_row_index = i
+                            break
                     
-                    # 3. Re-read with Winner Header
-                    if fn.endswith('.csv'): df = pd.read_csv(full_path, header=best_header_idx)
-                    else: df = pd.read_excel(full_path, header=best_header_idx)
+                    # Fallback Anchor: "Item" + "Rate" (if S.No is missing)
+                    if header_row_index == -1:
+                        for i, row in df_raw.head(60).iterrows():
+                            row_str = " ".join([str(val).lower() for val in row.values])
+                            if 'item' in row_str and 'rate' in row_str:
+                                header_row_index = i
+                                break
+                    
+                    if header_row_index != -1:
+                        # 3. Read Data from Anchor Row
+                        if fn.endswith('.csv'): 
+                            df = pd.read_csv(full_path, header=header_row_index, engine='python', on_bad_lines='skip')
+                        else: 
+                            df = pd.read_excel(full_path, header=header_row_index)
                         
-                    df.columns = df.columns.astype(str).str.lower().str.strip()
-                    
-                    # 4. Map Your Columns
-                    col_map = {
-                        'item_name': ['items', 'description', 'particular', 'product'],
-                        'make': ['make', 'brand', 'company'],
-                        'cat_no': ['cat', 'code', 'part', 'ref'],
-                        'reagent_kit': ['unit', 'pack', 'size', 'reagent'],
-                        'rate': ['rate', 'price', 'mrp', 'amount']
-                    }
+                        df.columns = df.columns.astype(str).str.lower().str.strip()
+                        
+                        # 4. Map Columns (Odoo Standard)
+                        col_map = {
+                            's_no': ['s.no', 'sr.no', 'sl.no', 'no.'],
+                            'item_name': ['items', 'description', 'particulars', 'product'],
+                            'make': ['make', 'brand', 'company'],
+                            'cat_no': ['cat', 'code', 'part', 'ref', 'cas'],
+                            'reagent_kit': ['unit', 'pack', 'size', 'kit'],
+                            'rate': ['rate', 'price', 'unit price', 'mrp']
+                        }
 
-                    def find_col(possible_names):
-                        for candidate in possible_names:
-                            for actual_col in df.columns:
-                                if candidate in actual_col: return actual_col
-                        return None
+                        def find_col(possible_names):
+                            for candidate in possible_names:
+                                for actual_col in df.columns:
+                                    if candidate in actual_col: return actual_col
+                            return None
 
-                    count = 0
-                    for index, row in df.iterrows():
-                        i_name = str(row[find_col(col_map['item_name'])]) if find_col(col_map['item_name']) else None
-                        i_make = str(row[find_col(col_map['make'])]) if find_col(col_map['make']) else None
-                        i_cat = str(row[find_col(col_map['cat_no'])]) if find_col(col_map['cat_no']) else None
-                        i_kit = str(row[find_col(col_map['reagent_kit'])]) if find_col(col_map['reagent_kit']) else None
-                        i_rate = str(row[find_col(col_map['rate'])]) if find_col(col_map['rate']) else None
+                        # We use S.No column to filter out junk rows
+                        s_no_col = find_col(col_map['s_no'])
                         
-                        def clean(val): return val if val and str(val).lower() not in ['nan', 'none', '', '0', 'total', 'tax'] else None
+                        count = 0
+                        for index, row in df.iterrows():
+                            # 5. FILTER: Only index rows where S.No is present or looks valid
+                            # This removes "Total", "Tax", and Footer rows automatically.
+                            valid_row = False
+                            if s_no_col and str(row[s_no_col]).strip().replace('.','').isdigit():
+                                valid_row = True
+                            elif not s_no_col:
+                                # Loose mode if S.No column wasn't found but header was
+                                valid_row = True
+
+                            if valid_row:
+                                i_name = str(row[find_col(col_map['item_name'])]) if find_col(col_map['item_name']) else None
+                                i_make = str(row[find_col(col_map['make'])]) if find_col(col_map['make']) else None
+                                i_cat = str(row[find_col(col_map['cat_no'])]) if find_col(col_map['cat_no']) else None
+                                i_kit = str(row[find_col(col_map['reagent_kit'])]) if find_col(col_map['reagent_kit']) else None
+                                i_rate = str(row[find_col(col_map['rate'])]) if find_col(col_map['rate']) else None
+                                
+                                def clean(val): 
+                                    if not val: return None
+                                    val = str(val).strip()
+                                    if val.lower() in ['nan', 'none', '', 'total']: return None
+                                    return val
+                                
+                                # Final validation: Must have Item Name
+                                if clean(i_name):
+                                    db.session.add(ProductData(
+                                        quotation_id=new_quote.id,
+                                        item_name=clean(i_name),
+                                        make=clean(i_make),
+                                        cat_no=clean(i_cat),
+                                        reagent_kit=clean(i_kit),
+                                        rate=clean(i_rate),
+                                        description=clean(i_name) # Specs mapped to description
+                                    ))
+                                    count += 1
                         
-                        # Save if valid item found
-                        if clean(i_name) and (clean(i_rate) or clean(i_cat)):
-                            if 'total' not in str(i_name).lower(): # Exclude total rows
-                                db.session.add(ProductData(
-                                    quotation_id=new_quote.id,
-                                    item_name=clean(i_name),
-                                    make=clean(i_make),
-                                    cat_no=clean(i_cat),
-                                    reagent_kit=clean(i_kit),
-                                    rate=clean(i_rate),
-                                    description=clean(i_name)
-                                ))
-                                count += 1
-                    
-                    db.session.commit()
-                    flash(f'Success! Indexed {count} items found starting at Row {best_header_idx+1}.', 'success')
-                    
+                        db.session.commit()
+                        if count > 0:
+                            flash(f'Success! Found Table at Row {header_row_index+1}. Indexed {count} products.', 'success')
+                        else:
+                            flash(f'Header found at Row {header_row_index+1}, but no valid products extracted.', 'warning')
+                    else:
+                        flash('Could not find "S.No" or "Items" table header.', 'warning')
+
                 except Exception as e:
-                    print(f"File Error: {e}")
-                    flash(f'File uploaded but error parsing: {str(e)}', 'warning')
+                    print(f"Parser Error: {e}")
+                    flash('File uploaded, but could not be indexed.', 'warning')
 
             return redirect(url_for('admin.dashboard'))
     return render_template('upload.html')
 
-# --- VIEW FILE (RAW MODE - PRESERVES TOP CONTENT) ---
+# --- VIEW FILE (RAW MODE - PRESERVES ODOO LAYOUT) ---
 @admin_bp.route('/view_file/<int:file_id>')
 @login_required
 def view_file(file_id):
@@ -167,11 +198,12 @@ def view_file(file_id):
     path = os.path.join(current_app.root_path, 'static', 'uploads', q.filename)
     if q.filename.endswith(('xlsx', 'xls', 'csv')):
         try:
-            # Read Raw (header=None) so the view shows the WHOLE file including address
-            if q.filename.endswith('.csv'): df = pd.read_csv(path, header=None)
-            else: df = pd.read_excel(path, header=None)
+            # Read Raw (header=None) so user sees the Ref No, Date, Address, etc.
+            if q.filename.endswith('.csv'): 
+                df = pd.read_csv(path, header=None, engine='python', on_bad_lines='skip')
+            else: 
+                df = pd.read_excel(path, header=None)
             
-            # Simple column names for view
             cols = [chr(65+i) if i < 26 else f"Col{i+1}" for i in range(len(df.columns))]
             return render_template('excel_view.html', filename=q.filename, columns=cols, data=df.fillna('').values.tolist())
         except: pass
