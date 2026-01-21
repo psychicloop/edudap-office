@@ -114,17 +114,14 @@
         const sidebar = document.querySelector('.sidebar');
         const toggle = document.getElementById('sidebarToggle');
 
-        // Toggle Button
         toggle?.addEventListener('click', () => sidebar?.classList.toggle('open'));
 
-        // Close on Nav Click (Mobile)
         document.querySelectorAll('.nav-rail .nav-item-link').forEach(a => {
             a.addEventListener('click', () => {
                 if (window.innerWidth <= 992) sidebar?.classList.remove('open');
             });
         });
 
-        // Close on Outside Click
         document.addEventListener('click', (e) => {
             if (!sidebar?.classList.contains('open')) return;
             const withinSidebar = sidebar.contains(e.target);
@@ -132,7 +129,6 @@
             if (!withinSidebar && !clickedToggle) sidebar.classList.remove('open');
         });
 
-        // Close on Escape
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') sidebar?.classList.remove('open');
         });
