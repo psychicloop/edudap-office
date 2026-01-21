@@ -1,116 +1,38 @@
 {% extends "base.html" %}
 {% block content %}
-
 <div class="row justify-content-center">
     <div class="col-md-8">
-        
         <div class="card border-0 shadow-sm mb-4">
-            <div class="card-header bg-white py-3 border-bottom-0">
-                <h5 class="fw-bold mb-0" style="color: var(--edudap-blue);">Daily Attendance</h5>
-            </div>
             <div class="card-body text-center py-5">
-                
                 <h4 class="fw-bold mb-2">{{ today.strftime('%A, %d %B %Y') }}</h4>
-                <p class="text-muted mb-4 small">Please mark your attendance below.</p>
-
                 {% if not record %}
-                    <div class="mb-4">
-                        <span class="badge bg-secondary px-3 py-2">Status: Not Started</span>
-                    </div>
-                    
                     <form method="POST" id="punchInForm">
-                        <input type="hidden" name="action" value="punch_in">
-                        <input type="hidden" name="latitude" id="lat">
-                        <input type="hidden" name="longitude" id="lng">
-                        
-                        <button type="button" onclick="getLocationAndSubmit()" class="btn btn-primary px-5 py-2 fw-bold" 
-                                style="background-color: var(--edudap-green); border: none;">
-                            <i class="bi bi-geo-alt-fill me-2"></i> PUNCH IN
-                        </button>
-                        <p id="geoMsg" class="text-muted small mt-2 fst-italic"></p>
+                        <input type="hidden" name="action" value="punch_in"><input type="hidden" name="latitude" id="lat"><input type="hidden" name="longitude" id="lng">
+                        <button type="button" onclick="getLocationAndSubmit()" class="btn btn-primary px-5 py-2 fw-bold" style="background-color: var(--edudap-green); border: none;">PUNCH IN</button>
+                        <p id="geoMsg" class="text-muted small mt-2"></p>
                     </form>
-
                 {% elif record.in_time and not record.out_time %}
-                    <div class="mb-4">
-                        <div class="text-success fw-bold mb-1">
-                            <i class="bi bi-clock me-1"></i> Punched In at {{ record.in_time.strftime('%I:%M %p') }}
-                        </div>
-                    </div>
-                    <form method="POST">
-                        <input type="hidden" name="action" value="punch_out">
-                        <button type="submit" class="btn btn-danger px-5 py-2 fw-bold">
-                            PUNCH OUT
-                        </button>
-                    </form>
-
+                    <div class="text-success fw-bold mb-4">Punched In at {{ record.in_time.strftime('%I:%M %p') }}</div>
+                    <form method="POST"><input type="hidden" name="action" value="punch_out"><button type="submit" class="btn btn-danger px-5 py-2 fw-bold">PUNCH OUT</button></form>
                 {% else %}
-                    <div class="alert alert-success d-inline-block px-4 py-2">
-                        <div class="fw-bold"><i class="bi bi-check-circle-fill me-2"></i>Day Completed</div>
-                        <div class="small mt-1">
-                            In: {{ record.in_time.strftime('%I:%M %p') }} &bull; 
-                            Out: {{ record.out_time.strftime('%I:%M %p') }}
-                        </div>
-                    </div>
+                    <div class="alert alert-success d-inline-block">Day Completed</div>
                 {% endif %}
-
-            </div>
-        </div>
-
-        <div class="card border-0 shadow-sm">
-            <div class="card-header bg-light py-2">
-                <small class="fw-bold text-uppercase text-muted">Last 7 Days</small>
-            </div>
-            <div class="card-body p-0">
-                <table class="table table-hover mb-0 align-middle small">
-                    <thead class="bg-white text-muted">
-                        <tr>
-                            <th class="ps-4">Date</th>
-                            <th>In Time</th>
-                            <th>Out Time</th>
-                            <th>Status</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for row in history %}
-                        <tr>
-                            <td class="ps-4 fw-bold text-dark">{{ row.date.strftime('%d-%b') }}</td>
-                            <td>{{ row.in_time.strftime('%I:%M %p') if row.in_time else '-' }}</td>
-                            <td>{{ row.out_time.strftime('%I:%M %p') if row.out_time else '-' }}</td>
-                            <td>
-                                {% if row.status == 'Present' %}
-                                    <span class="text-success fw-bold">Present</span>
-                                {% else %}
-                                    <span class="text-muted">Absent</span>
-                                {% endif %}
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
             </div>
         </div>
     </div>
 </div>
-
 <script>
 function getLocationAndSubmit() {
     var msg = document.getElementById("geoMsg");
-    msg.innerHTML = "Locating you...";
-    
+    msg.innerHTML = "Locating (High Accuracy)...";
     if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(function(position) {
             document.getElementById("lat").value = position.coords.latitude;
             document.getElementById("lng").value = position.coords.longitude;
-            msg.innerHTML = "Location found. Punching in...";
+            msg.innerHTML = "Found. Submitting...";
             document.getElementById("punchInForm").submit();
-        }, function(error) {
-            msg.innerHTML = "Error: Location required to Punch In.";
-            msg.classList.add("text-danger");
-        });
-    } else {
-        msg.innerHTML = "Geolocation is not supported by this browser.";
-    }
+        }, function(error) { msg.innerHTML = "Error: Location required."; }, { enableHighAccuracy: true });
+    } else { msg.innerHTML = "Geolocation not supported."; }
 }
 </script>
-
 {% endblock %}
