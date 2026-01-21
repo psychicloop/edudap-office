@@ -17,11 +17,11 @@ def admin_required(fn):
         return fn(*args, **kwargs)
     return wrapper
 
-# --- Dashboard (Safe Mode) ---
+# --- Dashboard Route ---
 @admin_bp.route('/dashboard', methods=['GET'])
 @login_required
 def dashboard():
-    # Placeholder stats to prevent crashes while models are missing
+    # Safe Placeholder Data
     stats = {
         "total_files": 0,
         "vendor_count": 0,
@@ -29,16 +29,19 @@ def dashboard():
         "search_count_24h": 0,
         "files": [] 
     }
-    # ALIGNMENT FIX: Points to 'admin/dashboard.html'
-    return render_template('admin/dashboard.html', **stats)
+    
+    # FIX APPLIED: pointing to 'dashboard.html' in the root templates folder
+    return render_template('dashboard.html', **stats)
 
-# --- Upload Stub ---
+# --- Upload Route ---
 @admin_bp.route('/upload', methods=['GET', 'POST'], endpoint='upload_file')
 @login_required
 def upload_file():
     if request.method == 'POST':
-        flash('Upload feature temporarily disabled for database update.', 'warning')
+        flash('Upload feature temporarily disabled.', 'warning')
         return redirect(url_for('admin.dashboard'))
+    
+    # Note: Ensure you have 'admin/upload.html' or move it to 'upload.html' too
     return render_template('admin/upload.html')
 
 # --- User Management ---
@@ -57,6 +60,7 @@ def promote_user(user_id):
     if getattr(user, 'role', None) == 'Admin':
         flash('User is already an admin.', 'info')
         return redirect(url_for('admin.manage_users'))
+        
     user.role = 'Admin'
     db.session.commit()
     flash(f'Promoted {user.username} to Admin.', 'success')
@@ -65,19 +69,4 @@ def promote_user(user_id):
 @admin_bp.route('/demote/<int:user_id>', methods=['POST'])
 @login_required
 @admin_required
-def demote_user(user_id):
-    user = User.query.get_or_404(user_id)
-    if user.id == current_user.id:
-        flash('Cannot demote yourself.', 'warning')
-        return redirect(url_for('admin.manage_users'))
-    
-    # Protect Last Admin
-    if getattr(user, 'role', None) == 'Admin':
-        if User.query.filter_by(role='Admin').count() <= 1:
-            flash('Cannot demote the last remaining admin.', 'danger')
-            return redirect(url_for('admin.manage_users'))
-
-    user.role = 'Employee'
-    db.session.commit()
-    flash(f'Demoted {user.username} to Employee.', 'warning')
-    return redirect(url_for('admin.manage_users'))
+def demote_user(user_id
