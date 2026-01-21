@@ -1,115 +1,21 @@
-from . import db
 from flask_login import UserMixin
-from datetime import datetime
-
-# --- ENUMS ---
-class AttendanceType:
-    PRESENT, ABSENT, HALF_DAY = 'Present', 'Absent', 'Half Day'
-
-class HolidayStatus:
-    PENDING, APPROVED, REJECTED = 'Pending', 'Approved', 'Rejected'
-
-class ExpenseStatus:
-    PENDING, APPROVED, REJECTED = 'Pending', 'Approved', 'Rejected'
-
-class TodoStatus:
-    PENDING, COMPLETED = 'Pending', 'Completed'
-
-class TodoPriority:
-    LOW, MEDIUM, HIGH = 'Low', 'Medium', 'High'
-
-class TaskStatus:
-    ASSIGNED, IN_PROGRESS, COMPLETED = 'Assigned', 'In Progress', 'Completed'
-
-# --- MODELS ---
-class Role(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(50), unique=True, nullable=False)
+from . import db
 
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(100), unique=True, nullable=False)
-    email = db.Column(db.String(120), unique=True, nullable=True)
+    username = db.Column(db.String(150), unique=True, nullable=False)
+    email = db.Column(db.String(150), unique=True, nullable=False)
+    password_hash = db.Column(db.String(256), nullable=False)
     role = db.Column(db.String(50), default='Employee')
-    password_hash = db.Column(db.String(200), nullable=False)
 
-# UPDATED QUOTATION + SMART SEARCH DATA
-class Quotation(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    filename = db.Column(db.String(200), nullable=False)
-    client_name = db.Column(db.String(100), nullable=True)
-    product_details = db.Column(db.String(500), nullable=True)
-    uploaded_at = db.Column(db.DateTime, default=datetime.utcnow)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    user = db.relationship('User', backref='quotations')
-    items = db.relationship('ProductData', backref='quotation', cascade="all, delete-orphan")
+    @property
+    def is_admin(self):
+        return self.role == 'Admin'
 
-class ProductData(db.Model):
+# --- RACE-SAFE FLAG ---
+class SiteFlag(db.Model):
+    __tablename__ = "site_flags"
     id = db.Column(db.Integer, primary_key=True)
-    quotation_id = db.Column(db.Integer, db.ForeignKey('quotation.id'), nullable=False)
-    item_name = db.Column(db.String(500), nullable=True)
-    make = db.Column(db.String(200), nullable=True)
-    cat_no = db.Column(db.String(100), nullable=True)
-    reagent_kit = db.Column(db.String(200), nullable=True)
-    rate = db.Column(db.String(100), nullable=True)
-    # THIS WAS MISSING - ADDED NOW
-    description = db.Column(db.Text, nullable=True)
-
-class Expense(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    date = db.Column(db.Date, nullable=False)
-    amount = db.Column(db.Float, nullable=False)
-    category = db.Column(db.String(50), nullable=False)
-    description = db.Column(db.String(200), nullable=True)
-    bill_image = db.Column(db.String(200), nullable=True)
-    status = db.Column(db.String(20), default=ExpenseStatus.PENDING)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    user = db.relationship('User', backref='expenses')
-
-class Attendance(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    date = db.Column(db.Date, nullable=False)
-    in_time = db.Column(db.DateTime, nullable=True)
-    out_time = db.Column(db.DateTime, nullable=True)
-    status = db.Column(db.String(20), default=AttendanceType.ABSENT)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    user = db.relationship('User', backref='attendance_records')
-
-class HolidayRequest(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    start_date = db.Column(db.Date, nullable=False)
-    end_date = db.Column(db.Date, nullable=False)
-    reason = db.Column(db.String(200), nullable=False)
-    status = db.Column(db.String(20), default=HolidayStatus.PENDING)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    user = db.relationship('User', backref='holiday_requests')
-
-class LocationPing(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    latitude = db.Column(db.Float, nullable=False)
-    longitude = db.Column(db.Float, nullable=False)
-    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    user = db.relationship('User', backref='pings')
-
-class Todo(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    title = db.Column(db.String(200), nullable=False)
-    due_date = db.Column(db.DateTime, nullable=True)
-    priority = db.Column(db.String(20), default=TodoPriority.MEDIUM)
-    status = db.Column(db.String(20), default=TodoStatus.PENDING)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    user = db.relationship('User', backref='todos')
-
-class AssignedTask(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    title = db.Column(db.String(200), nullable=False)
-    description = db.Column(db.Text, nullable=True)
-    assigned_to_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    assigned_by_id = db.Column(db.Integer, nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    deadline = db.Column(db.DateTime, nullable=True)
-    status = db.Column(db.String(20), default=TaskStatus.ASSIGNED)
-    chat_history = db.Column(db.Text, default="") 
-    
-    assigned_to = db.relationship('User', foreign_keys=[assigned_to_id], backref='assigned_tasks')
+    # Added index=True for performance/locking
+    key = db.Column(db.String(64), unique=True, index=True, nullable=False) 
+    value = db.Column(db.String(256))
