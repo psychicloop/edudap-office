@@ -38,7 +38,7 @@ def dashboard():
             )
         ).order_by(Quotation.uploaded_at.desc()).all()
         
-        # 2. Search Items (Matches Item, Make, Cat No, Specs/Description)
+        # 2. Search Items
         item_query = ProductData.query.join(Quotation).filter(
             or_(
                 ProductData.item_name.ilike(search_term),
@@ -62,7 +62,7 @@ def dashboard():
     
     return render_template('dashboard.html', results=search_results, stats=stats)
 
-# --- UPLOAD (ODOO ANCHOR PARSER) ---
+# --- UPLOAD (FAIL-SAFE PARSER) ---
 @admin_bp.route('/upload', methods=['GET', 'POST'])
 @login_required
 def upload_file():
@@ -86,111 +86,93 @@ def upload_file():
             
             if fn.endswith(('xlsx', 'xls', 'csv')):
                 try:
-                    # 1. Read Raw (Engine 'python' handles ragged rows better)
+                    # 1. READ FILE
                     if fn.endswith('.csv'): 
                         df_raw = pd.read_csv(full_path, header=None, engine='python', on_bad_lines='skip')
                     else: 
                         df_raw = pd.read_excel(full_path, header=None)
                     
-                    header_row_index = -1
+                    header_row = -1
                     
-                    # 2. FIND ANCHOR: "S.No" / "Sr.No"
-                    # We scan the first 60 rows for the table start.
+                    # 2. FIND HEADER (Look for Rate + Qty)
                     for i, row in df_raw.head(60).iterrows():
-                        row_str = " ".join([str(val).lower() for val in row.values])
-                        if 's.no' in row_str or 'sr.no' in row_str or 'sl.no' in row_str:
-                            header_row_index = i
+                        row_txt = " ".join([str(v).lower() for v in row.values])
+                        if 'rate' in row_txt and ('qty' in row_txt or 'quantity' in row_txt):
+                            header_row = i
                             break
                     
-                    # Fallback Anchor: "Item" + "Rate" (if S.No is missing)
-                    if header_row_index == -1:
-                        for i, row in df_raw.head(60).iterrows():
-                            row_str = " ".join([str(val).lower() for val in row.values])
-                            if 'item' in row_str and 'rate' in row_str:
-                                header_row_index = i
-                                break
-                    
-                    if header_row_index != -1:
-                        # 3. Read Data from Anchor Row
-                        if fn.endswith('.csv'): 
-                            df = pd.read_csv(full_path, header=header_row_index, engine='python', on_bad_lines='skip')
-                        else: 
-                            df = pd.read_excel(full_path, header=header_row_index)
-                        
-                        df.columns = df.columns.astype(str).str.lower().str.strip()
-                        
-                        # 4. Map Columns (Odoo Standard)
-                        col_map = {
-                            's_no': ['s.no', 'sr.no', 'sl.no', 'no.'],
-                            'item_name': ['items', 'description', 'particulars', 'product'],
-                            'make': ['make', 'brand', 'company'],
-                            'cat_no': ['cat', 'code', 'part', 'ref', 'cas'],
-                            'reagent_kit': ['unit', 'pack', 'size', 'kit'],
-                            'rate': ['rate', 'price', 'unit price', 'mrp']
-                        }
+                    # Fallback
+                    if header_row == -1: header_row = 0
 
-                        def find_col(possible_names):
-                            for candidate in possible_names:
-                                for actual_col in df.columns:
-                                    if candidate in actual_col: return actual_col
+                    # 3. RELOAD DATA
+                    if fn.endswith('.csv'): 
+                        df = pd.read_csv(full_path, header=header_row, engine='python', on_bad_lines='skip')
+                    else: 
+                        df = pd.read_excel(full_path, header=header_row)
+                    
+                    # 4. IDENTIFY COLUMN INDICES (The Robust Part)
+                    # We try to find names, but default to POSITIONS if names fail.
+                    headers = [str(c).lower().strip() for c in df.columns]
+                    
+                    def get_idx(keywords, default_idx):
+                        for i, h in enumerate(headers):
+                            if any(k in h for k in keywords): return i
+                        return default_idx # Fallback if name not found
+
+                    # Dynamic Mapping with Defaults
+                    idx_item = get_idx(['item', 'desc', 'particular'], 1)  # Default: Col B
+                    idx_make = get_idx(['make', 'brand', 'company'], 4)    # Default: Col E
+                    idx_cat  = get_idx(['cat', 'code', 'part'], 5)         # Default: Col F
+                    idx_unit = get_idx(['unit', 'pack', 'kit'], 2)         # Default: Col C
+                    idx_rate = get_idx(['rate', 'price', 'amount'], 6)     # Default: Col G
+
+                    count = 0
+                    sample_item = ""
+
+                    # 5. EXTRACT DATA
+                    for index, row in df.iterrows():
+                        vals = list(row.values)
+                        
+                        # Safe extraction helper
+                        def get_val(idx):
+                            if 0 <= idx < len(vals):
+                                v = str(vals[idx]).strip()
+                                return v if v.lower() not in ['nan', 'none', '', '0'] else None
                             return None
 
-                        # We use S.No column to filter out junk rows
-                        s_no_col = find_col(col_map['s_no'])
+                        item = get_val(idx_item)
+                        rate = get_val(idx_rate)
                         
-                        count = 0
-                        for index, row in df.iterrows():
-                            # 5. FILTER: Only index rows where S.No is present or looks valid
-                            # This removes "Total", "Tax", and Footer rows automatically.
-                            valid_row = False
-                            if s_no_col and str(row[s_no_col]).strip().replace('.','').isdigit():
-                                valid_row = True
-                            elif not s_no_col:
-                                # Loose mode if S.No column wasn't found but header was
-                                valid_row = True
-
-                            if valid_row:
-                                i_name = str(row[find_col(col_map['item_name'])]) if find_col(col_map['item_name']) else None
-                                i_make = str(row[find_col(col_map['make'])]) if find_col(col_map['make']) else None
-                                i_cat = str(row[find_col(col_map['cat_no'])]) if find_col(col_map['cat_no']) else None
-                                i_kit = str(row[find_col(col_map['reagent_kit'])]) if find_col(col_map['reagent_kit']) else None
-                                i_rate = str(row[find_col(col_map['rate'])]) if find_col(col_map['rate']) else None
-                                
-                                def clean(val): 
-                                    if not val: return None
-                                    val = str(val).strip()
-                                    if val.lower() in ['nan', 'none', '', 'total']: return None
-                                    return val
-                                
-                                # Final validation: Must have Item Name
-                                if clean(i_name):
-                                    db.session.add(ProductData(
-                                        quotation_id=new_quote.id,
-                                        item_name=clean(i_name),
-                                        make=clean(i_make),
-                                        cat_no=clean(i_cat),
-                                        reagent_kit=clean(i_kit),
-                                        rate=clean(i_rate),
-                                        description=clean(i_name) # Specs mapped to description
-                                    ))
-                                    count += 1
-                        
-                        db.session.commit()
-                        if count > 0:
-                            flash(f'Success! Found Table at Row {header_row_index+1}. Indexed {count} products.', 'success')
-                        else:
-                            flash(f'Header found at Row {header_row_index+1}, but no valid products extracted.', 'warning')
+                        # Valid Row Rule: Must have Item Name AND (Rate OR CatNo)
+                        if item and (rate or get_val(idx_cat)):
+                            if 'total' not in item.lower() and 'terms' not in item.lower():
+                                db.session.add(ProductData(
+                                    quotation_id=new_quote.id,
+                                    item_name=item,
+                                    make=get_val(idx_make),
+                                    cat_no=get_val(idx_cat),
+                                    reagent_kit=get_val(idx_unit),
+                                    rate=rate,
+                                    description=item
+                                ))
+                                count += 1
+                                if count == 1: sample_item = item # Grab first match for feedback
+                    
+                    db.session.commit()
+                    
+                    if count > 0:
+                        flash(f'Success! Indexed {count} items. (Sample: {sample_item})', 'success')
                     else:
-                        flash('Could not find "S.No" or "Items" table header.', 'warning')
+                        flash(f'Header found at Row {header_row+1}, but found 0 items. Check column positions.', 'warning')
 
                 except Exception as e:
                     print(f"Parser Error: {e}")
-                    flash('File uploaded, but could not be indexed.', 'warning')
+                    flash('File uploaded, but indexing failed.', 'warning')
 
             return redirect(url_for('admin.dashboard'))
     return render_template('upload.html')
 
-# --- VIEW FILE (RAW MODE - PRESERVES ODOO LAYOUT) ---
+# --- VIEW FILE (RAW MODE) ---
 @admin_bp.route('/view_file/<int:file_id>')
 @login_required
 def view_file(file_id):
@@ -198,7 +180,6 @@ def view_file(file_id):
     path = os.path.join(current_app.root_path, 'static', 'uploads', q.filename)
     if q.filename.endswith(('xlsx', 'xls', 'csv')):
         try:
-            # Read Raw (header=None) so user sees the Ref No, Date, Address, etc.
             if q.filename.endswith('.csv'): 
                 df = pd.read_csv(path, header=None, engine='python', on_bad_lines='skip')
             else: 
