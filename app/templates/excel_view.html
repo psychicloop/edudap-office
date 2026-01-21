@@ -1,53 +1,17 @@
 {% extends "base.html" %}
 {% block content %}
-
-<div class="container-fluid px-4">
-    <div class="row mb-3 align-items-center">
-        <div class="col">
-            <a href="{{ url_for('admin.dashboard') }}" class="text-decoration-none fw-bold" style="color: var(--edudap-blue);">
-                <i class="bi bi-arrow-left me-1"></i> Back to Dashboard
-            </a>
-        </div>
-        <div class="col text-end">
-            <span class="badge bg-success rounded-0">EXCEL READ-ONLY</span>
-        </div>
+<div class="card border-0 shadow-sm">
+    <div class="card-header bg-white py-3 d-flex justify-content-between">
+        <h5 class="fw-bold text-success"><i class="bi bi-file-earmark-spreadsheet me-2"></i>{{ filename }}</h5>
+        <a href="{{ url_for('admin.dashboard') }}" class="btn btn-outline-secondary btn-sm">Close</a>
     </div>
-
-    <div class="card rounded-0 border-secondary">
-        <div class="card-header bg-light py-1 border-bottom border-secondary rounded-0">
-            <small class="text-muted fw-bold">FILENAME: {{ filename }}</small>
-        </div>
-        <div class="card-body p-0 overflow-auto" style="min-height: 500px; background: white;">
-            
-            <table class="table table-bordered table-sm mb-0 excel-grid">
-                <thead>
-                    <tr>
-                        <th style="width: 40px; background: #f3f3f3;">#</th>
-                        {% for col in columns %}
-                        <th>{{ col }}</th>
-                        {% endfor %}
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for row in data %}
-                    <tr>
-                        <td style="background-color: #f3f3f3; text-align: center; color: #666; font-weight: bold;">{{ loop.index }}</td>
-                        {% for cell in row %}
-                        <td>{{ cell }}</td>
-                        {% endfor %}
-                    </tr>
-                    {% endfor %}
-                </tbody>
+    <div class="card-body p-0">
+        <div class="table-responsive" style="max-height: 80vh; overflow-y: auto;">
+            <table class="table table-bordered table-striped mb-0 small" style="min-width: 100%;">
+                <thead class="table-dark sticky-top"><tr>{% for col in columns %}<th>{{ col }}</th>{% endfor %}</tr></thead>
+                <tbody>{% for row in data %}<tr>{% for cell in row %}<td>{{ cell }}</td>{% endfor %}</tr>{% endfor %}</tbody>
             </table>
-
         </div>
     </div>
 </div>
-
-<style>
-    .excel-grid { font-family: 'Calibri', 'Arial', sans-serif; font-size: 14px; color: #000; border-collapse: collapse; }
-    .excel-grid thead th { background-color: #e6e6e6; border: 1px solid #999; text-align: center; font-weight: normal; color: #333; min-width: 100px; }
-    .excel-grid td { border: 1px solid #d4d4d4; padding: 4px 8px; white-space: nowrap; }
-</style>
-
 {% endblock %}
