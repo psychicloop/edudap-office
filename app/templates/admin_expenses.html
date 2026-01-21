@@ -16,6 +16,7 @@
 </ul>
 
 <div class="tab-content">
+    
     <div class="tab-pane fade show active" id="pending">
         <div class="card border-0 shadow-sm">
             <div class="card-body p-0">
@@ -29,29 +30,33 @@
                         </tr>
                     </thead>
                     <tbody>
-                        {% for exp in pending %}
-                        <tr>
-                            <td class="ps-4 fw-bold">{{ exp.user.username }}</td>
-                            <td>
-                                <div class="fw-bold">₹{{ exp.amount }} ({{ exp.category }})</div>
-                                <div class="text-muted small">{{ exp.description }}</div>
-                                <div class="text-muted x-small">{{ exp.date.strftime('%d %b') }}</div>
-                            </td>
-                            <td>
-                                {% if exp.bill_image %}
-                                <a href="{{ url_for('static', filename='uploads/' + exp.bill_image) }}" target="_blank" class="btn btn-sm btn-outline-primary">
-                                    <i class="bi bi-image"></i> View Bill
-                                </a>
-                                {% else %}
-                                <span class="text-muted small">No Attach</span>
-                                {% endif %}
-                            </td>
-                            <td class="text-end pe-4">
-                                <a href="{{ url_for('admin.approve_expense', id=exp.id) }}" class="btn btn-success btn-sm"><i class="bi bi-check-lg"></i></a>
-                                <a href="{{ url_for('admin.reject_expense', id=exp.id) }}" class="btn btn-danger btn-sm"><i class="bi bi-x-lg"></i></a>
-                            </td>
-                        </tr>
-                        {% endfor %}
+                        {% if pending %}
+                            {% for exp in pending %}
+                            <tr>
+                                <td class="ps-4 fw-bold">{{ exp.user.username }}</td>
+                                <td>
+                                    <div class="fw-bold">₹{{ exp.amount }} <span class="badge bg-light text-dark border ms-1">{{ exp.category }}</span></div>
+                                    <div class="text-muted small">{{ exp.description or '' }}</div>
+                                    <div class="text-muted" style="font-size: 0.75rem;">{{ exp.date.strftime('%d %b %Y') }}</div>
+                                </td>
+                                <td>
+                                    {% if exp.bill_image %}
+                                    <a href="{{ url_for('static', filename='uploads/' + exp.bill_image) }}" target="_blank" class="btn btn-sm btn-outline-primary">
+                                        <i class="bi bi-image"></i> View Bill
+                                    </a>
+                                    {% else %}
+                                    <span class="text-muted small fst-italic">No Attach</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end pe-4">
+                                    <a href="{{ url_for('admin.approve_expense', id=exp.id) }}" class="btn btn-success btn-sm me-1">Approve</a>
+                                    <a href="{{ url_for('admin.reject_expense', id=exp.id) }}" class="btn btn-outline-danger btn-sm">Reject</a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr><td colspan="4" class="text-center py-4 text-muted">No pending expenses.</td></tr>
+                        {% endif %}
                     </tbody>
                 </table>
             </div>
@@ -84,5 +89,6 @@
             </div>
         </div>
     </div>
+
 </div>
 {% endblock %}
