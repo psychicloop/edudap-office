@@ -1,62 +1,118 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="row justify-content-center mb-4">
+
+<div class="row justify-content-center">
     <div class="col-lg-10">
         <form action="{{ url_for('admin.dashboard') }}" method="GET">
-            <div class="input-group input-group-lg shadow-sm" style="border-radius: 8px; overflow: hidden;">
+            <div class="input-group input-group-lg shadow-sm mb-0" style="border-radius: 8px 8px 0 0; overflow: hidden;">
                 <span class="input-group-text bg-white border-0 ps-4"><i class="bi bi-search" style="color: var(--edudap-green);"></i></span>
-                <input type="text" name="q" class="form-control border-0 py-3 small-placeholder" placeholder="Make / Cat No / Reagent / Rate / Item..." style="font-size: 1.1rem;">
-                <button class="btn btn-primary px-4 fw-bold" style="background-color: var(--edudap-blue); border: none;" type="submit">SEARCH</button>
-                <a href="{{ url_for('admin.upload_file') }}" class="btn text-white px-4 fw-bold d-flex align-items-center" style="background-color: var(--edudap-green); border: none;"><i class="bi bi-cloud-upload me-2"></i> UPLOAD</a>
+                
+                <input type="text" name="q" class="form-control border-0 py-3 small-placeholder" 
+                       placeholder="Make / Cat No / Instrument / Chemical / Reagent / Name..." 
+                       style="font-size: 1.1rem; background-color: white;">
+                
+                <button class="btn btn-primary px-4 fw-bold" style="background-color: var(--edudap-blue); border: none; width: 140px;" type="submit">SEARCH</button>
+                <a href="{{ url_for('admin.upload_file') }}" class="btn text-white px-4 fw-bold d-flex align-items-center justify-content-center" 
+                   style="background-color: var(--edudap-green); border: none; width: 140px;">
+                   <i class="bi bi-cloud-upload me-2"></i> UPLOAD
+                </a>
             </div>
         </form>
+        <style>.small-placeholder::placeholder { color: #ccc; font-size: 0.9rem; }</style>
+
+        <div class="d-flex align-items-center bg-white px-4 py-2 border-top shadow-sm mb-4" style="border-radius: 0 0 8px 8px;">
+            <span class="small text-muted fw-bold me-3 text-uppercase">Search History:</span>
+            <div class="d-flex gap-2">
+                <span class="badge bg-light text-secondary border fw-normal">Recent Searches...</span>
+            </div>
+        </div>
     </div>
 </div>
 
 {% if results.product_matches %}
-<div class="card border-0 shadow-sm mb-4">
-    <div class="card-header bg-white py-3"><h5 class="mb-0 fw-bold" style="color: var(--edudap-blue);">Product Matches found inside Excel</h5></div>
-    <div class="card-body p-0">
-        <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0 small">
-                <thead class="bg-light"><tr><th>Item / Description</th><th>Make</th><th>Cat No</th><th>Reagent/Kit</th><th>Rate</th><th>Source File</th></tr></thead>
-                <tbody>
-                    {% for item in results.product_matches %}
-                    <tr>
-                        <td class="fw-bold">{{ item.item_name or '-' }}</td>
-                        <td>{{ item.make or '-' }}</td>
-                        <td><span class="badge bg-light text-dark border">{{ item.cat_no or '-' }}</span></td>
-                        <td>{{ item.reagent_kit or '-' }}</td>
-                        <td class="text-success fw-bold">{{ item.rate or '-' }}</td>
-                        <td><a href="{{ url_for('admin.view_file', file_id=item.quotation_id) }}" class="text-decoration-none"><i class="bi bi-file-earmark-excel me-1"></i>View File</a></td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+<div class="row justify-content-center mb-4">
+    <div class="col-lg-12">
+        <div class="card border-0 shadow-sm" style="border-top: 4px solid var(--edudap-blue);">
+            <div class="card-header bg-white py-3 border-bottom-0">
+                <h5 class="mb-0 fw-bold" style="color: var(--edudap-blue);"><i class="bi bi-box-seam me-2"></i>Item Matches</h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0 small">
+                        <thead class="bg-light text-muted text-uppercase">
+                            <tr>
+                                <th class="ps-4">Item / Description</th>
+                                <th>Make</th>
+                                <th>Cat No</th>
+                                <th>Rate</th>
+                                <th class="text-end pe-4">Source</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in results.product_matches %}
+                            <tr>
+                                <td class="ps-4 fw-bold text-dark">{{ item.item_name or '-' }}</td>
+                                <td>{{ item.make or '-' }}</td>
+                                <td><span class="badge bg-light text-dark border">{{ item.cat_no or '-' }}</span></td>
+                                <td class="text-success fw-bold">{{ item.rate or '-' }}</td>
+                                <td class="text-end pe-4">
+                                    <a href="{{ url_for('admin.view_file', file_id=item.quotation_id) }}" class="btn btn-sm btn-outline-primary">
+                                        <i class="bi bi-eye"></i> View File
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
     </div>
 </div>
 {% endif %}
 
-{% if results.files %}
-<div class="card border-0 shadow-sm">
-    <div class="card-header bg-white py-3"><h5 class="mb-0 fw-bold" style="color: var(--edudap-blue);">File Matches</h5></div>
-    <div class="card-body p-0">
-        <table class="table table-hover align-middle mb-0">
-            <tbody>
-                {% for quote in results.files %}
-                <tr>
-                    <td class="ps-4 fw-bold">{{ quote.filename }}</td>
-                    <td>{{ quote.client_name }}</td>
-                    <td class="text-end pe-4">
-                        <a href="{{ url_for('admin.view_file', file_id=quote.id) }}" class="btn btn-sm btn-outline-primary me-2">View</a>
-                        <a href="{{ url_for('admin.download_file', file_id=quote.id) }}" class="btn btn-sm btn-success"><i class="bi bi-download"></i></a>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+<div class="row justify-content-center g-4">
+    <div class="col-lg-12">
+        <div class="card border-0 shadow-sm h-100" style="border-top: 4px solid var(--edudap-green);">
+            <div class="card-header bg-white py-3 border-bottom-0">
+                <h5 class="mb-0 fw-bold" style="color: var(--edudap-blue);"><i class="bi bi-folder2-open me-2"></i>File Results</h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="bg-light text-muted small text-uppercase">
+                            <tr>
+                                <th class="ps-4">Filename</th>
+                                <th>Client</th>
+                                <th class="text-end pe-4">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if results.files %}
+                                {% for quote in results.files %}
+                                <tr>
+                                    <td class="ps-4">
+                                        <div class="fw-bold text-dark">{{ quote.filename }}</div>
+                                        <div class="small text-muted">{{ quote.product_details or 'General Upload' }}</div>
+                                    </td>
+                                    <td><span class="badge bg-light text-dark border">{{ quote.client_name or 'Unknown' }}</span></td>
+                                    <td class="text-end pe-4">
+                                        <a href="{{ url_for('admin.view_file', file_id=quote.id) }}" class="btn btn-sm btn-outline-primary me-1">View</a>
+                                        <a href="{{ url_for('admin.download_file', file_id=quote.id) }}" class="btn btn-sm text-white" style="background-color: var(--edudap-green);">
+                                            <i class="bi bi-download"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            {% else %}
+                                <tr><td colspan="3" class="text-center py-5 text-muted">No files found matching criteria.</td></tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
-{% endif %}
+
 {% endblock %}
