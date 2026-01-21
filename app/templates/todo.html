@@ -1,8 +1,10 @@
 {% extends "base.html" %}
 {% block content %}
 
+<audio id="alarmSound" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg" preload="auto"></audio>
+
 <div class="row justify-content-center">
-    <div class="col-md-8">
+    <div class="col-md-9">
         
         <div class="card border-0 shadow-sm mb-4">
             <div class="card-header bg-white py-3 border-bottom-0">
@@ -13,68 +15,144 @@
             <div class="card-body p-4">
                 <form method="POST">
                     <input type="hidden" name="action" value="add">
-                    <div class="input-group">
-                        <input type="text" name="title" class="form-control form-control-lg" placeholder="What needs to be done?" required>
-                        
-                        <input type="datetime-local" name="due_date" class="form-control form-control-lg" style="max-width: 200px;" title="Set Alarm/Due Date">
-                        
-                        <button type="submit" class="btn btn-primary fw-bold px-4" style="background-color: var(--edudap-green); border: none;">ADD</button>
+                    <div class="row g-2 align-items-center">
+                        <div class="col-md-5">
+                            <input type="text" name="title" class="form-control form-control-lg" placeholder="What needs to be done?" required>
+                        </div>
+                        <div class="col-md-3">
+                            <select name="priority" class="form-select form-select-lg">
+                                <option value="Medium" selected>Medium Priority</option>
+                                <option value="High">High Priority</option>
+                                <option value="Low">Low Priority</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <input type="datetime-local" name="due_date" class="form-control form-control-lg" title="Set Alarm/Due Date">
+                        </div>
+                        <div class="col-md-1">
+                            <button type="submit" class="btn btn-primary w-100 btn-lg" style="background-color: var(--edudap-green); border: none;">
+                                <i class="bi bi-plus-lg"></i>
+                            </button>
+                        </div>
                     </div>
                 </form>
             </div>
         </div>
 
-        <div class="card border-0 shadow-sm">
-            <div class="card-header bg-light py-2">
-                <small class="fw-bold text-uppercase text-muted">My Tasks</small>
-            </div>
-            <div class="card-body p-0">
-                <ul class="list-group list-group-flush">
-                    {% if tasks %}
-                        {% for task in tasks %}
-                        <li class="list-group-item d-flex justify-content-between align-items-center py-3 {% if task.status == 'Completed' %}bg-light{% endif %}">
-                            
-                            <div class="d-flex align-items-center">
-                                {% if task.status == 'Pending' %}
-                                <form method="POST" class="me-3">
-                                    <input type="hidden" name="action" value="complete">
-                                    <input type="hidden" name="task_id" value="{{ task.id }}">
-                                    <button type="submit" class="btn btn-outline-success btn-sm rounded-circle" style="width: 32px; height: 32px; padding: 0;">
-                                        <i class="bi bi-check"></i>
-                                    </button>
-                                </form>
-                                {% else %}
-                                <div class="me-3 text-success"><i class="bi bi-check-circle-fill fs-5"></i></div>
-                                {% endif %}
+        <ul class="nav nav-tabs mb-3 border-bottom-0" id="todoTabs" role="tablist">
+            <li class="nav-item">
+                <button class="nav-link active fw-bold" id="pending-tab" data-bs-toggle="tab" data-bs-target="#pending" type="button">
+                    Pending Tasks
+                </button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link fw-bold text-muted" id="done-tab" data-bs-toggle="tab" data-bs-target="#done" type="button">
+                    Completed
+                </button>
+            </li>
+        </ul>
 
-                                <div>
-                                    <div class="fw-bold {% if task.status == 'Completed' %}text-decoration-line-through text-muted{% endif %}">
-                                        {{ task.title }}
+        <div class="tab-content" id="todoTabsContent">
+            
+            <div class="tab-pane fade show active" id="pending" role="tabpanel">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body p-0">
+                        <ul class="list-group list-group-flush">
+                            {% if pending_tasks %}
+                                {% for task in pending_tasks %}
+                                <li class="list-group-item d-flex justify-content-between align-items-center py-3">
+                                    <div class="d-flex align-items-center">
+                                        <form method="POST" class="me-3">
+                                            <input type="hidden" name="action" value="complete">
+                                            <input type="hidden" name="task_id" value="{{ task.id }}">
+                                            <button type="submit" class="btn btn-outline-secondary btn-sm rounded-circle" style="width: 30px; height: 30px; padding: 0;">
+                                                <i class="bi bi-check"></i>
+                                            </button>
+                                        </form>
+
+                                        <div>
+                                            <div class="fw-bold">{{ task.title }}</div>
+                                            
+                                            <div class="d-flex gap-2 align-items-center mt-1">
+                                                {% if task.priority == 'High' %}
+                                                    <span class="badge bg-danger text-white" style="font-size: 0.7rem;">High</span>
+                                                {% elif task.priority == 'Low' %}
+                                                    <span class="badge bg-success text-white" style="font-size: 0.7rem;">Low</span>
+                                                {% else %}
+                                                    <span class="badge bg-warning text-dark" style="font-size: 0.7rem;">Medium</span>
+                                                {% endif %}
+
+                                                {% if task.due_date %}
+                                                    {% if task.due_date < now %}
+                                                        <span class="text-danger small fw-bold overdue-task">
+                                                            <i class="bi bi-alarm-fill me-1"></i>Overdue: {{ task.due_date.strftime('%d %b, %I:%M %p') }}
+                                                        </span>
+                                                    {% else %}
+                                                        <span class="text-muted small">
+                                                            <i class="bi bi-alarm me-1"></i>Due: {{ task.due_date.strftime('%d %b, %I:%M %p') }}
+                                                        </span>
+                                                    {% endif %}
+                                                {% endif %}
+                                            </div>
+                                        </div>
                                     </div>
-                                    {% if task.due_date %}
-                                        {% if task.due_date < now and task.status == 'Pending' %}
-                                            <div class="text-danger small fw-bold"><i class="bi bi-alarm-fill me-1"></i>Overdue: {{ task.due_date.strftime('%d %b, %I:%M %p') }}</div>
-                                        {% else %}
-                                            <div class="text-muted small"><i class="bi bi-alarm me-1"></i>Due: {{ task.due_date.strftime('%d %b, %I:%M %p') }}</div>
-                                        {% endif %}
-                                    {% endif %}
-                                </div>
-                            </div>
+                                    
+                                    <form method="POST">
+                                        <input type="hidden" name="action" value="delete">
+                                        <input type="hidden" name="task_id" value="{{ task.id }}">
+                                        <button type="submit" class="btn btn-link text-muted btn-sm"><i class="bi bi-trash"></i></button>
+                                    </form>
+                                </li>
+                                {% endfor %}
+                            {% else %}
+                                <li class="list-group-item text-center py-5 text-muted">No pending tasks. Relax!</li>
+                            {% endif %}
+                        </ul>
+                    </div>
+                </div>
+            </div>
 
-                            <form method="POST">
-                                <input type="hidden" name="action" value="delete">
-                                <input type="hidden" name="task_id" value="{{ task.id }}">
-                                <button type="submit" class="btn btn-link text-muted btn-sm p-0"><i class="bi bi-x-lg"></i></button>
-                            </form>
-                        </li>
-                        {% endfor %}
-                    {% else %}
-                        <li class="list-group-item text-center py-4 text-muted">No tasks pending. Great job!</li>
-                    {% endif %}
-                </ul>
+            <div class="tab-pane fade" id="done" role="tabpanel">
+                <div class="card border-0 shadow-sm opacity-75">
+                    <div class="card-body p-0">
+                        <ul class="list-group list-group-flush">
+                            {% if completed_tasks %}
+                                {% for task in completed_tasks %}
+                                <li class="list-group-item d-flex justify-content-between align-items-center py-3 bg-light">
+                                    <div class="d-flex align-items-center">
+                                        <div class="me-3 text-success"><i class="bi bi-check-circle-fill fs-5"></i></div>
+                                        <div class="text-decoration-line-through text-muted">{{ task.title }}</div>
+                                    </div>
+                                    <form method="POST">
+                                        <input type="hidden" name="action" value="delete">
+                                        <input type="hidden" name="task_id" value="{{ task.id }}">
+                                        <button type="submit" class="btn btn-link text-muted btn-sm"><i class="bi bi-trash"></i></button>
+                                    </form>
+                                </li>
+                                {% endfor %}
+                            {% else %}
+                                <li class="list-group-item text-center py-5 text-muted">No completed tasks yet.</li>
+                            {% endif %}
+                        </ul>
+                    </div>
+                </div>
             </div>
         </div>
+
     </div>
 </div>
+
+<script>
+    // JS ALARM LOGIC
+    // Checks every 10 seconds. If an 'overdue-task' exists on screen, plays sound.
+    setInterval(function() {
+        if (document.querySelector('.overdue-task')) {
+            var audio = document.getElementById("alarmSound");
+            audio.play().catch(function(error) {
+                console.log("Audio play failed (user didn't interact yet): " + error);
+            });
+        }
+    }, 10000); // Check every 10 seconds
+</script>
 
 {% endblock %}
