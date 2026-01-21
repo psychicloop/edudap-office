@@ -4,7 +4,7 @@ from datetime import datetime, date, timedelta
 from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app, send_from_directory, Response
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
-from .models import Quotation, Expense, Attendance, HolidayRequest, Todo, LocationPing, AssignedTask, User, db
+from .models import Quotation, Expense, Attendance, HolidayRequest, Todo, LocationPing, AssignedTask, User, ProductData, db
 from sqlalchemy import or_, extract
 
 admin_bp = Blueprint('admin', __name__)
@@ -14,26 +14,89 @@ ALLOWED_EXTENSIONS = {'pdf', 'xlsx', 'xls', 'jpg', 'jpeg', 'png'}
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-# --- DASHBOARD ---
+# --- DASHBOARD (SMART SEARCH) ---
 @admin_bp.route('/dashboard')
 @login_required
 def dashboard():
     query = request.args.get('q')
+    
     if current_user.role == 'Admin':
-        sql_query = Quotation.query
+        base_query = Quotation.query
     else:
-        sql_query = Quotation.query.filter_by(user_id=current_user.id)
+        base_query = Quotation.query.filter_by(user_id=current_user.id)
 
     if query:
-        search = f"%{query}%"
-        sql_query = sql_query.filter(or_(Quotation.filename.ilike(search), Quotation.client_name.ilike(search), Quotation.product_details.ilike(search)))
+        search_term = f"%{query}%"
+        # Search in File Metadata OR inside Product Data
+        base_query = base_query.outerjoin(ProductData).filter(
+            or_(
+                Quotation.filename.ilike(search_term),
+                Quotation.client_name.ilike(search_term),
+                ProductData.item_name.ilike(search_term),
+                ProductData.make.ilike(search_term),
+                ProductData.cat_no.ilike(search_term),
+                ProductData.reagent_kit.ilike(search_term)
+            )
+        ).distinct()
     
-    user_quotes = sql_query.order_by(Quotation.uploaded_at.desc()).all()
+    user_quotes = base_query.order_by(Quotation.uploaded_at.desc()).all()
     user_expenses = Expense.query.filter_by(user_id=current_user.id, status='Pending').all()
     stats = {'quote_count': len(user_quotes), 'expense_total': sum(e.amount for e in user_expenses) if user_expenses else 0, 'role': current_user.role}
+    
     return render_template('dashboard.html', stats=stats, quotes=user_quotes)
 
-# --- ASSIGNED TASKS ---
+# --- UPLOAD (SMART PARSER) ---
+@admin_bp.route('/upload', methods=['GET', 'POST'])
+@login_required
+def upload_file():
+    if request.method == 'POST':
+        f = request.files['file']
+        if f and allowed_file(f.filename):
+            fn = secure_filename(f.filename)
+            path = os.path.join(current_app.root_path, 'static', 'uploads')
+            os.makedirs(path, exist_ok=True)
+            full_path = os.path.join(path, fn)
+            f.save(full_path)
+            
+            # Create Quotation Record
+            new_quote = Quotation(
+                filename=fn, 
+                client_name=request.form.get('client_name'), 
+                product_details=request.form.get('product_details'), 
+                user_id=current_user.id
+            )
+            db.session.add(new_quote)
+            db.session.commit()
+            
+            # SMART PARSE EXCEL
+            if fn.endswith(('xlsx', 'xls')):
+                try:
+                    df = pd.read_excel(full_path)
+                    df.columns = df.columns.str.lower().str.strip()
+                    for index, row in df.iterrows():
+                        def get_val(col_list):
+                            for col in col_list:
+                                if col in df.columns: return str(row[col])
+                            return None
+
+                        p_data = ProductData(
+                            quotation_id=new_quote.id,
+                            item_name=get_val(['item', 'item name', 'items', 'description']),
+                            make=get_val(['make', 'brand']),
+                            cat_no=get_val(['cat no', 'cat. no.', 'catalog no', 'cat#']),
+                            reagent_kit=get_val(['reagent', 'kit', 'reagent/kit']),
+                            rate=get_val(['rate', 'price', 'unit price']),
+                            description=get_val(['description', 'specifications'])
+                        )
+                        db.session.add(p_data)
+                    db.session.commit()
+                except Exception as e:
+                    print(f"Error parsing excel: {e}")
+
+            return redirect(url_for('admin.dashboard'))
+    return render_template('upload.html')
+
+# --- ASSIGN TASKS ---
 @admin_bp.route('/assigned', methods=['GET', 'POST'])
 @login_required
 def assigned():
@@ -51,6 +114,7 @@ def assigned():
         if task:
             msg = request.form.get('message')
             status = request.form.get('status')
+            # Add new line to chat
             task.chat_history = (task.chat_history or "") + f"[{datetime.now().strftime('%d-%b %H:%M')}] {current_user.username}: {msg}\n"
             if status: task.status = status
             db.session.commit()
@@ -71,7 +135,7 @@ def admin_panel():
     stats = {'leaves': pending_leaves, 'expenses': pending_expenses, 'active_staff': active_staff}
     return render_template('admin_panel.html', stats=stats)
 
-# --- ATTENDANCE MONITOR ---
+# --- ATTENDANCE (GOOGLE MAPS DATA) ---
 @admin_bp.route('/admin/attendance-monitor')
 @login_required
 def admin_attendance():
@@ -99,7 +163,7 @@ def export_attendance():
         data.append({'Employee': r.user.username, 'Date': r.date, 'In': r.in_time, 'Out': r.out_time, 'Hours': round(hours, 2)})
     return Response(pd.DataFrame(data).to_csv(index=False), mimetype="text/csv", headers={"Content-disposition": "attachment; filename=attendance_report.csv"})
 
-# --- EXPENSES MANAGEMENT ---
+# --- EXPENSES ---
 @admin_bp.route('/admin/expenses-manage')
 @login_required
 def admin_expenses():
@@ -117,7 +181,7 @@ def export_expenses():
     data = [{'User': e.user.username, 'Date': e.date, 'Amount': e.amount, 'Status': e.status} for e in expenses]
     return Response(pd.DataFrame(data).to_csv(index=False), mimetype="text/csv", headers={"Content-disposition": "attachment; filename=expense_report.csv"})
 
-# --- STANDARD ROUTES (Leaves, Attendance, Expenses) ---
+# --- STANDARD ROUTES ---
 @admin_bp.route('/admin/leaves')
 @login_required
 def admin_leaves():
@@ -158,7 +222,6 @@ def expenses():
             file = request.files['bill_image']
             if file and allowed_file(file.filename):
                 filename = secure_filename(file.filename)
-                # FORCE CREATE DIRECTORY IF MISSING
                 os.makedirs(os.path.join(current_app.root_path, 'static', 'uploads'), exist_ok=True)
                 file.save(os.path.join(current_app.root_path, 'static', 'uploads', filename))
         if exp_date and amount:
@@ -197,7 +260,7 @@ def leave():
     history = HolidayRequest.query.filter_by(user_id=current_user.id).order_by(HolidayRequest.start_date.desc()).all()
     return render_template('leave.html', history=history)
 
-# Approvals & Uploads
+# Approvals & View Files
 @admin_bp.route('/approve-leave/<int:id>')
 @login_required
 def approve_leave(id):
@@ -218,27 +281,11 @@ def approve_expense(id):
 def reject_expense(id):
     if current_user.role == 'Admin': r=Expense.query.get(id); r.status='Rejected'; db.session.commit()
     return redirect(url_for('admin.admin_expenses'))
-
-@admin_bp.route('/upload', methods=['GET', 'POST'])
-@login_required
-def upload_file():
-    if request.method == 'POST':
-        f = request.files['file']
-        if f and allowed_file(f.filename):
-            fn = secure_filename(f.filename)
-            # FORCE CREATE DIRECTORY
-            os.makedirs(os.path.join(current_app.root_path, 'static', 'uploads'), exist_ok=True)
-            f.save(os.path.join(current_app.root_path, 'static', 'uploads', fn))
-            db.session.add(Quotation(filename=fn, client_name=request.form.get('client_name'), product_details=request.form.get('product_details'), user_id=current_user.id)); db.session.commit()
-            return redirect(url_for('admin.dashboard'))
-    return render_template('upload.html')
-
 @admin_bp.route('/download/<int:file_id>')
 @login_required
 def download_file(file_id):
     q = Quotation.query.get_or_404(file_id)
     return send_from_directory(os.path.join(current_app.root_path, 'static', 'uploads'), q.filename, as_attachment=True)
-
 @admin_bp.route('/view_file/<int:file_id>')
 @login_required
 def view_file(file_id):
