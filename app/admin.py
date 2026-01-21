@@ -4,7 +4,7 @@ from datetime import datetime, date
 from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app, send_from_directory
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
-from .models import Quotation, Expense, Attendance, HolidayRequest, Todo, db
+from .models import Quotation, Expense, Attendance, HolidayRequest, Todo, LocationPing, db
 from sqlalchemy import or_
 
 admin_bp = Blueprint('admin', __name__)
@@ -42,7 +42,7 @@ def dashboard():
 
     return render_template('dashboard.html', stats=stats, quotes=user_quotes)
 
-# --- ATTENDANCE ---
+# --- ATTENDANCE (UPDATED WITH LOCATION) ---
 @admin_bp.route('/attendance', methods=['GET', 'POST'])
 @login_required
 def attendance():
@@ -55,10 +55,20 @@ def attendance():
 
         if action == 'punch_in':
             if not record:
+                # CAPTURE LOCATION
+                lat = request.form.get('latitude')
+                lng = request.form.get('longitude')
+                
                 new_record = Attendance(date=today, in_time=now, status='Present', user_id=current_user.id)
                 db.session.add(new_record)
+                
+                # Save Ping if location exists
+                if lat and lng:
+                    new_ping = LocationPing(latitude=float(lat), longitude=float(lng), timestamp=now, user_id=current_user.id)
+                    db.session.add(new_ping)
+                
                 db.session.commit()
-                flash('Punched In Successfully.', 'success')
+                flash('Punched In Successfully (Location Captured).', 'success')
             else:
                 flash('Already punched in.', 'info')
 
@@ -117,7 +127,7 @@ def expenses():
     history = Expense.query.filter_by(user_id=current_user.id).order_by(Expense.date.desc()).all()
     return render_template('expenses.html', history=history)
 
-# --- TODO LIST (UPDATED) ---
+# --- TODO LIST ---
 @admin_bp.route('/todo', methods=['GET', 'POST'])
 @login_required
 def todo():
@@ -127,11 +137,9 @@ def todo():
         if action == 'add':
             title = request.form.get('title')
             due_str = request.form.get('due_date') 
-            priority = request.form.get('priority') # Get Priority
-            
+            priority = request.form.get('priority')
             due_dt = None
-            if due_str:
-                due_dt = datetime.strptime(due_str, '%Y-%m-%dT%H:%M')
+            if due_str: due_dt = datetime.strptime(due_str, '%Y-%m-%dT%H:%M')
             
             if title:
                 new_task = Todo(title=title, due_date=due_dt, priority=priority, status='Pending', user_id=current_user.id)
@@ -157,14 +165,82 @@ def todo():
 
         return redirect(url_for('admin.todo'))
 
-    # Sort: High Priority First, then Date
     tasks = Todo.query.filter_by(user_id=current_user.id).order_by(Todo.due_date.asc()).all()
-    
-    # Split for Tabs
     pending_tasks = [t for t in tasks if t.status == 'Pending']
     completed_tasks = [t for t in tasks if t.status == 'Completed']
-    
     return render_template('todo.html', pending_tasks=pending_tasks, completed_tasks=completed_tasks, now=datetime.now())
+
+# --- ADMIN PANEL (NEW COMMAND CENTER) ---
+@admin_bp.route('/admin-panel')
+@login_required
+def admin_panel():
+    if current_user.role != 'Admin':
+        flash('Access Denied.', 'danger')
+        return redirect(url_for('admin.dashboard'))
+    
+    # 1. Get Pending Approvals
+    pending_leaves = HolidayRequest.query.filter_by(status='Pending').all()
+    pending_expenses = Expense.query.filter_by(status='Pending').all()
+    
+    # 2. Get Today's Live Attendance
+    today = date.today()
+    attendance_records = Attendance.query.filter_by(date=today).all()
+    
+    # Attach location data manually to records
+    live_map_data = []
+    for record in attendance_records:
+        # Get latest ping for this user today
+        ping = LocationPing.query.filter_by(user_id=record.user_id).order_by(LocationPing.timestamp.desc()).first()
+        if ping:
+            live_map_data.append({
+                'username': record.user.username,
+                'in_time': record.in_time,
+                'lat': ping.latitude,
+                'lng': ping.longitude
+            })
+            
+    return render_template('admin_panel.html', leaves=pending_leaves, expenses=pending_expenses, map_data=live_map_data)
+
+# --- APPROVE / REJECT ACTIONS ---
+@admin_bp.route('/approve-leave/<int:id>')
+@login_required
+def approve_leave(id):
+    if current_user.role == 'Admin':
+        req = HolidayRequest.query.get(id)
+        req.status = 'Approved'
+        db.session.commit()
+        flash('Leave Approved', 'success')
+    return redirect(url_for('admin.admin_panel'))
+
+@admin_bp.route('/reject-leave/<int:id>')
+@login_required
+def reject_leave(id):
+    if current_user.role == 'Admin':
+        req = HolidayRequest.query.get(id)
+        req.status = 'Rejected'
+        db.session.commit()
+        flash('Leave Rejected', 'danger')
+    return redirect(url_for('admin.admin_panel'))
+
+@admin_bp.route('/approve-expense/<int:id>')
+@login_required
+def approve_expense(id):
+    if current_user.role == 'Admin':
+        req = Expense.query.get(id)
+        req.status = 'Approved'
+        db.session.commit()
+        flash('Expense Approved', 'success')
+    return redirect(url_for('admin.admin_panel'))
+
+@admin_bp.route('/reject-expense/<int:id>')
+@login_required
+def reject_expense(id):
+    if current_user.role == 'Admin':
+        req = Expense.query.get(id)
+        req.status = 'Rejected'
+        db.session.commit()
+        flash('Expense Rejected', 'danger')
+    return redirect(url_for('admin.admin_panel'))
 
 # --- UPLOAD, DOWNLOAD, VIEW (SAFE HOUSE) ---
 @admin_bp.route('/upload', methods=['GET', 'POST'])
