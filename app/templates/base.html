@@ -12,7 +12,6 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
     
     <link rel="stylesheet" href="{{ url_for('static', filename='css/edu-theme.css') }}">
-    
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='logo-icon.png.png') }}">
     
     {% block extra_css %}{% endblock %}
@@ -25,25 +24,12 @@
                 EduDAP
             </a>
             <nav class="nav-rail">
-                <a href="{{ url_for('admin.dashboard') }}" class="nav-item-link">
-                    <i class="bi bi-speedometer2 me-2"></i> Dashboard
-                </a>
-                <a href="{{ url_for('admin.upload_file') }}" class="nav-item-link">
-                    <i class="bi bi-cloud-upload me-2"></i> Upload
-                </a>
-                
-                <a href="{{ url_for('admin.attendance') }}" class="nav-item-link">
-                    <i class="bi bi-calendar-check me-2"></i> Attendance
-                </a>
-                <a href="{{ url_for('admin.leaves') }}" class="nav-item-link">
-                    <i class="bi bi-airplane me-2"></i> Leaves
-                </a>
-                <a href="{{ url_for('admin.expenses') }}" class="nav-item-link">
-                    <i class="bi bi-cash-stack me-2"></i> Expenses
-                </a>
-                <a href="{{ url_for('admin.assigned') }}" class="nav-item-link">
-                    <i class="bi bi-list-task me-2"></i> Assigned
-                </a>
+                <a href="{{ url_for('admin.dashboard') }}" class="nav-item-link"><i class="bi bi-speedometer2 me-2"></i> Dashboard</a>
+                <a href="{{ url_for('admin.upload_file') }}" class="nav-item-link"><i class="bi bi-cloud-upload me-2"></i> Upload</a>
+                <a href="{{ url_for('admin.attendance') }}" class="nav-item-link"><i class="bi bi-calendar-check me-2"></i> Attendance</a>
+                <a href="{{ url_for('admin.leaves') }}" class="nav-item-link"><i class="bi bi-airplane me-2"></i> Leaves</a>
+                <a href="{{ url_for('admin.expenses') }}" class="nav-item-link"><i class="bi bi-cash-stack me-2"></i> Expenses</a>
+                <a href="{{ url_for('admin.assigned') }}" class="nav-item-link"><i class="bi bi-list-task me-2"></i> Assigned</a>
 
                 {% if current_user.is_authenticated and current_user.role == 'Admin' %}
                 <a href="{{ url_for('admin.manage_users') }}" class="nav-item-link mt-3 pt-3 border-top border-secondary">
