@@ -21,7 +21,7 @@ def admin_required(fn):
 def dashboard():
     search_query = request.args.get('q', '').strip()
     
-    # GATHER LIVE STATS
+    # 1. LIVE STATS
     try:
         total_files = Quotation.query.count()
         vendor_count = db.session.query(ProductData.make).distinct().count()
@@ -31,7 +31,7 @@ def dashboard():
 
     results = {'files': [], 'product_matches': []}
 
-    # PERFORM SEARCH
+    # 2. PERFORM SEARCH
     if search_query:
         # Search Files
         results['files'] = Quotation.query.filter(Quotation.filename.ilike(f'%{search_query}%')).limit(5).all()
@@ -46,7 +46,7 @@ def dashboard():
                 'item_name': p.item_description, 'make': p.make, 'cat_no': p.cat_no, 'rate': p.rate
             })
 
-    # Get Recent Files
+    # 3. RECENT FILES
     try:
         recent_files = Quotation.query.order_by(Quotation.upload_date.desc()).limit(5).all()
     except:
@@ -60,6 +60,7 @@ def dashboard():
 @login_required
 def api_search():
     q = request.args.get('q', '').strip()
+    # SAFETY FIX: Using real '<' symbol here
     if len(q) < 2: return jsonify({'results': []})
     
     products = ProductData.query.filter(ProductData.item_description.ilike(f'%{q}%')).limit(5).all()
@@ -67,14 +68,40 @@ def api_search():
     return jsonify({'results': data})
 
 # --- OTHER ROUTES ---
-@admin_bp.route('/upload', methods=['GET', 'POST'])
+@admin_bp.route('/upload', methods=['GET', 'POST'], endpoint='upload_file')
 @login_required
 def upload_file():
-    # POST logic disabled for safety until we confirm DB is stable
+    # POST logic disabled for now
+    if request.method == 'POST':
+        flash('Upload processing is paused for database maintenance.', 'warning')
+        return redirect(url_for('admin.dashboard'))
     return render_template('upload.html')
 
-@admin_bp.route('/users')
+@admin_bp.route('/users', methods=['GET'])
 @login_required
+@admin_required
 def manage_users():
-    users = User.query.all()
+    users = User.query.order_by(User.role.asc()).all()
     return render_template('manage_users.html', users=users)
+
+@admin_bp.route('/promote/<int:user_id>', methods=['POST'])
+@login_required
+@admin_required
+def promote_user(user_id):
+    user = User.query.get_or_404(user_id)
+    if user.role != 'Admin':
+        user.role = 'Admin'
+        db.session.commit()
+        flash(f'Promoted {user.username} to Admin.', 'success')
+    return redirect(url_for('admin.manage_users'))
+
+@admin_bp.route('/demote/<int:user_id>', methods=['POST'])
+@login_required
+@admin_required
+def demote_user(user_id):
+    user = User.query.get_or_404(user_id)
+    if user.id != current_user.id and user.role == 'Admin':
+        user.role = 'Employee'
+        db.session.commit()
+        flash(f'Demoted {user.username}.', 'warning')
+    return redirect(url_for('admin.manage_users'))
