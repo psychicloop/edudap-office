@@ -1,40 +1,74 @@
-/* =========================================
-   EduDAP Office — Premium Theme
-   ========================================= */
+/* EduDAP Theme - Base Setup */
 :root {
-  --edudap-blue: #0B3C78;
-  --edudap-navy: #002B55;
-  --edudap-cyan: #2EA8AC;
-  --edudap-bg: #F8F9FA;
-  --edudap-surface: #FFFFFF;
-  --edudap-text: #2C3E50;
-  --edudap-lens-gradient: linear-gradient(160deg, #0B3C78 0%, #002B55 100%);
-  --edudap-glass-bg: rgba(255, 255, 255, 0.85);
-  --edudap-glass-blur: blur(12px);
-  --edudap-radius: 10px;
+    --edudap-blue: #0B3C78;
+    --edudap-dark: #001A33;
+    --edudap-bg: #F8F9FA;
 }
 
-body { font-family: 'Inter', sans-serif; background-color: var(--edudap-bg); color: var(--edudap-text); overflow-x: hidden; }
-h1, h2, h3, h4, h5 { font-family: 'Poppins', sans-serif; color: var(--edudap-blue); font-weight: 600; }
-
-/* LAYOUT */
-.app-shell { display: grid; grid-template-columns: 260px 1fr; grid-template-rows: 64px 1fr; grid-template-areas: "sidebar topbar" "sidebar main"; min-height: 100vh; }
-.sidebar { grid-area: sidebar; background: var(--edudap-lens-gradient); color: white; position: sticky; top: 0; height: 100vh; display: flex; flex-direction: column; padding: 1.5rem 1rem; z-index: 100; transition: transform 0.3s ease; }
-.topbar { grid-area: topbar; background: var(--edudap-glass-bg); backdrop-filter: var(--edudap-glass-blur); border-bottom: 1px solid rgba(0,0,0,0.05); display: flex; align-items: center; justify-content: space-between; padding: 0 2rem; position: sticky; top: 0; z-index: 90; }
-.main-content { grid-area: main; padding: 2rem; width: 100%; }
-
-/* COMPONENTS */
-.nav-item-link { display: flex; align-items: center; gap: 12px; padding: 0.75rem 1rem; color: rgba(255,255,255,0.8); text-decoration: none; border-radius: var(--edudap-radius); transition: all 0.2s ease; font-weight: 500; }
-.nav-item-link:hover, .nav-item-link.active { background: rgba(255,255,255,0.15); color: white; transform: translateX(4px); }
-.card { border: 1px solid rgba(0,0,0,0.08); border-radius: var(--edudap-radius); box-shadow: 0 2px 4px rgba(0,0,0,0.05); background: var(--edudap-surface); transition: transform 0.2s ease, box-shadow 0.2s ease; }
-.card:hover { transform: translateY(-4px); box-shadow: 0 8px 16px rgba(0,0,0,0.08); }
-.btn { border-radius: 8px; font-weight: 500; transition: transform 0.2s ease; }
-.btn:hover { transform: translateY(-2px); }
-.btn-primary { background-color: var(--edudap-blue); border-color: var(--edudap-blue); }
-
-/* MOBILE */
-@media (max-width: 992px) {
-  .app-shell { grid-template-columns: 1fr; grid-template-rows: 64px 1fr; grid-template-areas: "topbar" "main"; }
-  .sidebar { position: fixed; inset: 64px 0 0 0; height: calc(100vh - 64px); transform: translateX(-100%); }
-  .sidebar.open { transform: translateX(0); }
+body {
+    background-color: var(--edudap-bg);
+    font-family: 'Inter', sans-serif;
 }
+
+.app-shell { display: flex; min-height: 100vh; }
+
+/* SIDEBAR: Centered Content */
+.sidebar {
+    width: 260px;
+    background: linear-gradient(180deg, var(--edudap-blue), var(--edudap-dark));
+    color: white;
+    padding: 20px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center; /* Center logo and nav items */
+}
+
+.sidebar-brand {
+    padding: 20px 0;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+    margin-bottom: 30px;
+}
+
+.nav-rail { width: 100%; }
+
+.nav-item-link {
+    color: rgba(255,255,255,0.7);
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    padding: 12px 15px;
+    border-radius: 10px;
+    margin-bottom: 8px;
+    transition: all 0.2s;
+}
+
+.nav-item-link:hover {
+    background: rgba(255,255,255,0.1);
+    color: white;
+}
+
+/* TOPBAR & BADGE */
+.topbar {
+    height: 70px;
+    background: white;
+    border-bottom: 1px solid #eef0f2;
+    display: flex;
+    align-items: center;
+    padding: 0 30px;
+}
+
+.user-badge {
+    background: #f1f4f9;
+    padding: 8px 16px;
+    border-radius: 50px;
+    border: 1px solid #dce3eb;
+    font-weight: 500;
+}
+
+/* BUTTONS */
+.btn-primary { background-color: var(--edudap-blue); border: none; }
+.btn-primary:hover { background-color: var(--edudap-dark); }
