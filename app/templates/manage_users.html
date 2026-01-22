@@ -1,44 +1,54 @@
 {% extends "base.html" %}
-{% block title %}Manage Users · EduDAP Office{% endblock %}
-{% block breadcrumb %}<i class="bi bi-people-fill"></i> Workspace / Manage Users{% endblock %}
+{% block title %}Manage Users · EduDAP{% endblock %}
+{% block breadcrumb %}Workspace / Users{% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <h3 class="mb-0">User Management</h3>
-        <a href="{{ url_for('admin.dashboard') }}" class="btn btn-outline-secondary">Back to Dashboard</a>
-    </div>
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h4 class="mb-0 fw-bold text-primary">User Management</h4>
+    <span class="badge bg-light text-dark border">{{ users|length }} Users</span>
+</div>
 
-    <div class="card shadow-sm border-0">
-        <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
-                <thead class="bg-light">
-                    <tr><th>Username</th><th>Email</th><th>Role</th><th class="text-end">Actions</th></tr>
-                </thead>
-                <tbody>
-                {% for u in users %}
+<div class="card shadow-sm border-0">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="bg-light">
                 <tr>
-                    <td>{{ u.username }}</td>
-                    <td>{{ u.email }}</td>
-                    <td><span class="badge {% if u.role == 'Admin' %}bg-danger{% else %}bg-secondary{% endif %}">{{ u.role }}</span></td>
-                    <td class="text-end">
-                        {% if u.id != current_user.id %}
-                        <form method="POST" action="{{ url_for('admin.promote_user', user_id=u.id) if u.role != 'Admin' else url_for('admin.demote_user', user_id=u.id) }}" style="display:inline;">
-                            <button class="btn btn-sm {{ 'btn-outline-success' if u.role != 'Admin' else 'btn-outline-warning' }}">
-                                {{ 'Promote' if u.role != 'Admin' else 'Demote' }}
-                            </button>
-                        </form>
-                        {% else %}
-                        <span class="text-muted small">Current User</span>
-                        {% endif %}
-                    </td>
+                    <th class="ps-4">User</th>
+                    <th>Role</th>
+                    <th>Status</th>
+                    <th class="text-end pe-4">Actions</th>
                 </tr>
-                {% else %}
-                <tr><td colspan="4" class="text-center text-muted py-4">No users found.</td></tr>
-                {% endfor %}
-                </tbody>
-            </table>
-        </div>
+            </thead>
+            <tbody>
+            {% for u in users %}
+            <tr>
+                <td class="ps-4">
+                    <div class="fw-bold text-dark">{{ u.username }}</div>
+                    <div class="small text-muted">{{ u.email }}</div>
+                </td>
+                <td>
+                    {% if u.role == 'Admin' %}
+                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle">Admin</span>
+                    {% else %}
+                        <span class="badge bg-light text-secondary border">Employee</span>
+                    {% endif %}
+                </td>
+                <td><span class="badge bg-success-subtle text-success">Active</span></td>
+                <td class="text-end pe-4">
+                    {% if u.id != current_user.id %}
+                    <form method="POST" action="{{ url_for('admin.promote_user', user_id=u.id) if u.role != 'Admin' else url_for('admin.demote_user', user_id=u.id) }}">
+                        <button type="submit" class="btn btn-sm fw-bold {{ 'btn-outline-primary' if u.role != 'Admin' else 'btn-outline-danger' }}">
+                            {{ 'Promote' if u.role != 'Admin' else 'Demote' }}
+                        </button>
+                    </form>
+                    {% else %}
+                    <span class="text-muted small fst-italic">Current User</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
     </div>
 </div>
 {% endblock %}
