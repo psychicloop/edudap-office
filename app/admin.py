@@ -5,6 +5,7 @@ from sqlalchemy import or_
 from .models import User, Quotation, ProductData, db
 import csv
 from io import StringIO
+from datetime import datetime
 
 admin_bp = Blueprint('admin', __name__)
 
@@ -92,4 +93,52 @@ def demote_user(user_id):
         flash(f'Demoted {user.username}.', 'warning')
     return redirect(url_for('admin.manage_users'))
 
-# ---
+# --- 4. ATTENDANCE & EXPORT (Fixes the Crash) ---
+@admin_bp.route('/attendance')
+@login_required
+def attendance():
+    # Renders 'admin_attendance.html'
+    return render_template('admin_attendance.html')
+
+@admin_bp.route('/attendance/export')
+@login_required
+def export_attendance():
+    # CSV Export Logic
+    si = StringIO()
+    cw = csv.writer(si)
+    cw.writerow(['Date', 'User', 'Status', 'Time In'])
+    # Dummy data for now (Connect to DB later)
+    cw.writerow([datetime.now().strftime('%Y-%m-%d'), current_user.username, 'Present', '09:00 AM'])
+    
+    output = si.getvalue()
+    return Response(output, mimetype="text/csv", headers={"Content-Disposition": "attachment;filename=attendance_report.csv"})
+
+# --- 5. OTHER PAGES (Leaves, Expenses, etc.) ---
+@admin_bp.route('/leaves')
+@login_required
+def leaves():
+    return render_template('admin_leaves.html')
+
+@admin_bp.route('/expenses')
+@login_required
+def expenses():
+    return render_template('admin_expenses.html')
+
+@admin_bp.route('/assigned')
+@login_required
+def assigned():
+    return render_template('assigned.html')
+
+@admin_bp.route('/locations')
+@login_required
+def locations():
+    return render_template('admin_locations.html')
+
+@admin_bp.route('/api/search', methods=['GET'])
+@login_required
+def api_search():
+    q = request.args.get('q', '').strip()
+    if len(q) < 2: return jsonify({'results': []})
+    products = ProductData.query.filter(ProductData.item_description.ilike(f'%{q}%')).limit(5).all()
+    data = [{'item': p.item_description, 'make': p.make, 'rate': p.rate} for p in products]
+    return jsonify({'results': data})
