@@ -20,7 +20,7 @@ def admin_required(fn):
         return fn(*args, **kwargs)
     return wrapper
 
-# --- 1. DASHBOARD ---
+# --- DASHBOARD & SEARCH ---
 @admin_bp.route('/dashboard', methods=['GET'])
 @login_required
 def dashboard():
@@ -33,7 +33,6 @@ def dashboard():
         vendor_count = 0
 
     results = {'files': [], 'product_matches': []}
-
     if search_query:
         results['files'] = Quotation.query.filter(Quotation.filename.ilike(f'%{search_query}%')).limit(5).all()
         products = ProductData.query.filter(
@@ -50,49 +49,9 @@ def dashboard():
     except:
         recent_files = []
 
-    stats = { "total_files": total_files, "vendor_count": vendor_count, "results": results, "search_query": search_query, "files": recent_files }
-    return render_template('dashboard.html', **stats)
+    return render_template('dashboard.html', total_files=total_files, vendor_count=vendor_count, results=results, search_query=search_query, files=recent_files)
 
-# --- 2. UPLOAD ---
-@admin_bp.route('/upload', methods=['GET', 'POST'], endpoint='upload_file')
-@login_required
-def upload_file():
-    if request.method == 'POST':
-        flash('Upload processing is paused for maintenance.', 'warning')
-        return redirect(url_for('admin.dashboard'))
-    return render_template('upload.html')
-
-# --- 3. USERS ---
-@admin_bp.route('/users', methods=['GET'])
-@login_required
-@admin_required
-def manage_users():
-    users = User.query.order_by(User.role.asc()).all()
-    return render_template('manage_users.html', users=users)
-
-@admin_bp.route('/promote/<int:user_id>', methods=['POST'])
-@login_required
-@admin_required
-def promote_user(user_id):
-    user = User.query.get_or_404(user_id)
-    if user.role != 'Admin':
-        user.role = 'Admin'
-        db.session.commit()
-        flash(f'Promoted {user.username}.', 'success')
-    return redirect(url_for('admin.manage_users'))
-
-@admin_bp.route('/demote/<int:user_id>', methods=['POST'])
-@login_required
-@admin_required
-def demote_user(user_id):
-    user = User.query.get_or_404(user_id)
-    if user.id != current_user.id and user.role == 'Admin':
-        user.role = 'Employee'
-        db.session.commit()
-        flash(f'Demoted {user.username}.', 'warning')
-    return redirect(url_for('admin.manage_users'))
-
-# --- 4. ATTENDANCE ---
+# --- ATTENDANCE ---
 @admin_bp.route('/attendance')
 @login_required
 def attendance():
@@ -107,7 +66,13 @@ def export_attendance():
     cw.writerow([datetime.now().strftime('%Y-%m-%d'), current_user.username, 'Present'])
     return Response(si.getvalue(), mimetype="text/csv", headers={"Content-Disposition": "attachment;filename=attendance.csv"})
 
-# --- 5. EXPENSES ---
+# --- LEAVES ---
+@admin_bp.route('/leaves')
+@login_required
+def leaves():
+    return render_template('admin_leaves.html')
+
+# --- EXPENSES ---
 @admin_bp.route('/expenses')
 @login_required
 def expenses():
@@ -118,22 +83,11 @@ def expenses():
 def export_expenses():
     si = StringIO()
     cw = csv.writer(si)
-    cw.writerow(['Date', 'User', 'Amount'])
-    cw.writerow([datetime.now().strftime('%Y-%m-%d'), current_user.username, '0.00'])
+    cw.writerow(['Date', 'User', 'Amount', 'Reason'])
+    cw.writerow([datetime.now().strftime('%Y-%m-%d'), current_user.username, '0.00', 'Sample'])
     return Response(si.getvalue(), mimetype="text/csv", headers={"Content-Disposition": "attachment;filename=expenses.csv"})
 
-# --- 6. LEAVES (THIS IS THE MISSING PART) ---
-@admin_bp.route('/leaves')
-@login_required
-def leaves():
-    return render_template('admin_leaves.html')
-
-@admin_bp.route('/admin_panel')
-@login_required
-def admin_panel():
-    return redirect(url_for('admin.dashboard'))
-
-# --- 7. OTHER MISSING PAGES ---
+# --- ASSIGNED & LOCATIONS ---
 @admin_bp.route('/assigned')
 @login_required
 def assigned():
@@ -144,12 +98,28 @@ def assigned():
 def locations():
     return render_template('admin_locations.html')
 
-# --- 8. API ---
-@admin_bp.route('/api/search', methods=['GET'])
+@admin_bp.route('/admin_panel')
+@login_required
+def admin_panel():
+    return redirect(url_for('admin.dashboard'))
+
+# --- UPLOAD & USER MANAGEMENT ---
+@admin_bp.route('/upload', methods=['GET', 'POST'], endpoint='upload_file')
+@login_required
+def upload_file():
+    return render_template('upload.html')
+
+@admin_bp.route('/users')
+@login_required
+@admin_required
+def manage_users():
+    users = User.query.order_by(User.role.asc()).all()
+    return render_template('manage_users.html', users=users)
+
+@admin_bp.route('/api/search')
 @login_required
 def api_search():
     q = request.args.get('q', '').strip()
     if len(q) < 2: return jsonify({'results': []})
     products = ProductData.query.filter(ProductData.item_description.ilike(f'%{q}%')).limit(5).all()
-    data = [{'item': p.item_description, 'make': p.make, 'rate': p.rate} for p in products]
-    return jsonify({'results': data})
+    return jsonify({'results': [{'item': p.item_description, 'make': p.make, 'rate': p.rate} for p in products]})
